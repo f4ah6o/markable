@@ -10,7 +10,7 @@ export interface MarkableViteOptions {
   inject?: boolean;
 }
 
-export function markable(options: MarkableViteOptions = {}): Plugin {
+export function vitePlus(options: MarkableViteOptions = {}): Plugin {
   const endpoint = options.endpoint ?? "/__markable/comments";
   const commentsFile = options.commentsFile ?? ".markable/comments.json";
   const inject = options.inject ?? true;
@@ -18,7 +18,7 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
   let resolvedMode: MarkableMode = "review";
 
   return {
-    name: "vite-plugin-markable",
+    name: "vite-plus-markable",
 
     configResolved(config) {
       root = config.root;
@@ -75,6 +75,8 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
     }
   };
 }
+
+export const markable = vitePlus;
 
 function resolveMode(mode: MarkableViteOptions["mode"], viteMode: string): MarkableMode {
   if (mode === "review" || mode === "feedback") return mode;
