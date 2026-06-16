@@ -14,26 +14,26 @@ It is designed to work in two modes:
 The intended npm entry point is:
 
 ```bash
-npm install @f4ah6o/markable
+npm install @f12o/markable
 ```
 
 Subpath exports are used for integrations:
 
 ```ts
-import { createMarkable } from "@f4ah6o/markable/core";
-import { createDomAdapter } from "@f4ah6o/markable/dom";
-import { markable } from "@f4ah6o/markable/vite";
+import { createMarkable } from "@f12o/markable/core";
+import { createDomAdapter } from "@f12o/markable/dom";
+import { vitePlus } from "@f12o/markable/vite";
 ```
 
-## Vite usage
+## Vite Plus usage
 
 ```ts
 import { defineConfig } from "vite";
-import { markable } from "@f4ah6o/markable/vite";
+import { vitePlus } from "@f12o/markable/vite";
 
 export default defineConfig({
   plugins: [
-    markable({
+    vitePlus({
       mode: process.env.NODE_ENV === "production" ? "feedback" : "review",
       commentsFile: ".markable/comments.json",
       endpoint: "/__markable/comments"
@@ -41,6 +41,8 @@ export default defineConfig({
   ]
 });
 ```
+
+`markable` is kept as a compatibility alias for the Vite plugin function.
 
 ## Core idea
 
