@@ -42,8 +42,6 @@ export default defineConfig({
 });
 ```
 
-`markable` is kept as a compatibility alias for the Vite plugin function.
-
 ## Core idea
 
 ```text
