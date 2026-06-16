@@ -31,7 +31,8 @@
   },
   "scripts": {
     "build": "tsup src/index.ts src/core.ts src/dom.ts src/vite.ts --format esm --dts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:demo": "pnpm --filter @f12o/markable-vite-todo-demo build"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

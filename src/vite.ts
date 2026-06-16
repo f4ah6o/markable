@@ -32,8 +32,8 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
           tag: "script",
           attrs: {
             type: "module",
-            src: "/@markable/client",
           },
+          children: clientSource(endpoint, resolvedMode),
           injectTo: "body",
         },
       ];
@@ -155,7 +155,13 @@ function createPanel() {
   submit.textContent = "Send";
   submit.setAttribute("data-markable-submit", "");
 
-  panel.append(textarea, submit);
+  const status = document.createElement("p");
+  status.setAttribute("data-markable-status", "");
+  status.setAttribute("role", "status");
+  status.style.margin = "8px 0 0";
+  status.style.fontSize = "12px";
+
+  panel.append(textarea, submit, status);
   return panel;
 }
 
@@ -203,13 +209,23 @@ panel.addEventListener("submit", async event => {
     createdAt: now,
     updatedAt: now
   };
-  await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(annotation)
-  });
-  panel.reset();
-  panel.style.display = "none";
+  const status = panel.querySelector("[data-markable-status]");
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(annotation)
+    });
+    if (!response.ok) throw new Error("Request failed with " + response.status);
+    if (status) status.textContent = "Annotation saved.";
+    panel.reset();
+    panel.style.display = "none";
+  } catch (error) {
+    console.warn("markable: unable to persist annotation", error, annotation);
+    if (status) {
+      status.textContent = "Captured locally. Configure a remote endpoint to persist feedback on static hosts.";
+    }
+  }
 });
 `;
 }

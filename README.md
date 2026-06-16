@@ -78,3 +78,51 @@ artifact
 ## Current status
 
 Initial scaffold.
+
+## Demo app
+
+A lightweight Vue 3 + Vite Todo demo lives in `examples/vite-todo`. It is intentionally small so the markable integration is easy to inspect:
+
+```bash
+pnpm install
+pnpm build
+pnpm --filter @f12o/markable-vite-todo-demo dev
+```
+
+The demo config uses the package Vite plugin directly:
+
+```ts
+markable({
+  mode: "auto",
+  commentsFile: ".markable/comments.json",
+  endpoint: "/__markable/comments",
+});
+```
+
+In Vite development mode, `mode: "auto"` resolves to review mode. Select Todo text, click the floating Mark button, and submit a review annotation. The dev server endpoint writes structured annotation JSON to `.markable/comments.json` inside the demo app.
+
+In production builds, `mode: "auto"` resolves to feedback mode. The floating control becomes user-facing feedback UI and captures page context such as URL, title, viewport, user agent, and the optional selected quote.
+
+### GitHub Pages deployment
+
+The `Deploy demo to GitHub Pages` workflow builds the package, builds `examples/vite-todo`, and publishes the static output to GitHub Pages at:
+
+```text
+https://f4ah6o.github.io/markable/
+```
+
+GitHub Pages is static hosting, so it can demonstrate the Todo app and injected feedback overlay but cannot persist POSTed feedback to `/.markable` or `/.json` files. For public static deployments, treat submitted feedback as local/session-only unless a remote endpoint is configured.
+
+### Cloudflare Workers follow-up
+
+For persistent production feedback, point the markable endpoint at a Worker route such as `/api/feedback`:
+
+```text
+browser
+  -> markable feedback UI
+  -> /api/feedback
+  -> Cloudflare Worker
+  -> D1, KV, R2, GitHub Issues, a queue, or a webhook
+```
+
+That follow-up can keep the static GitHub Pages demo lightweight while adding real storage, notification, or issue creation behind a Worker-backed endpoint.
