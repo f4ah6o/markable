@@ -117,17 +117,41 @@ function clientSource(endpoint: string, mode: MarkableMode): string {
   return `
 const endpoint = ${JSON.stringify(endpoint)};
 const mode = ${JSON.stringify(mode)};
+let selectionMode = "browse";
+let candidateElement = null;
+let selectedTarget = null;
 
-function createButton() {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.textContent = mode === "feedback" ? "Feedback" : "Mark";
-  button.setAttribute("data-markable-trigger", "");
-  button.style.position = "fixed";
-  button.style.right = "16px";
-  button.style.bottom = "16px";
-  button.style.zIndex = "2147483647";
-  return button;
+function createControl() {
+  const control = document.createElement("div");
+  control.setAttribute("data-markable-control", "");
+  control.style.position = "fixed";
+  control.style.right = "16px";
+  control.style.bottom = "16px";
+  control.style.zIndex = "2147483647";
+  control.style.display = "flex";
+  control.style.gap = "4px";
+  control.style.padding = "4px";
+  control.style.border = "1px solid color-mix(in srgb, CanvasText 30%, transparent)";
+  control.style.borderRadius = "999px";
+  control.style.background = "Canvas";
+  control.style.color = "CanvasText";
+  control.style.boxShadow = "0 8px 24px rgba(0, 0, 0, 0.18)";
+
+  for (const value of ["browse", "element", "text"]) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.value = value;
+    button.textContent = value === "browse" ? "Browse" : value === "element" ? "Select element" : "Select text";
+    button.setAttribute("data-markable-mode", value);
+    button.style.border = "0";
+    button.style.borderRadius = "999px";
+    button.style.padding = "6px 10px";
+    button.style.background = value === selectionMode ? "Highlight" : "transparent";
+    button.style.color = value === selectionMode ? "HighlightText" : "inherit";
+    control.append(button);
+  }
+
+  return control;
 }
 
 function createPanel() {
@@ -135,20 +159,42 @@ function createPanel() {
   panel.setAttribute("data-markable-panel", "");
   panel.style.position = "fixed";
   panel.style.right = "16px";
-  panel.style.bottom = "56px";
+  panel.style.bottom = "64px";
   panel.style.zIndex = "2147483647";
   panel.style.display = "none";
   panel.style.background = "Canvas";
   panel.style.color = "CanvasText";
-  panel.style.border = "1px solid currentColor";
-  panel.style.padding = "8px";
-  panel.style.borderRadius = "8px";
+  panel.style.border = "1px solid color-mix(in srgb, CanvasText 30%, transparent)";
+  panel.style.padding = "12px";
+  panel.style.borderRadius = "12px";
+  panel.style.boxShadow = "0 12px 32px rgba(0, 0, 0, 0.22)";
+  panel.style.width = "min(360px, calc(100vw - 32px))";
+
+  const target = document.createElement("p");
+  target.setAttribute("data-markable-target-summary", "");
+  target.style.margin = "0 0 8px";
+  target.style.fontSize = "12px";
+  target.textContent = mode === "feedback" ? "Choose an element or selected text to attach feedback." : "Choose a target for your review comment.";
 
   const textarea = document.createElement("textarea");
   textarea.name = "message";
   textarea.required = true;
   textarea.placeholder = mode === "feedback" ? "Feedback or inquiry" : "Review comment";
   textarea.setAttribute("data-markable-input", "");
+  textarea.style.boxSizing = "border-box";
+  textarea.style.width = "100%";
+  textarea.style.minHeight = "96px";
+
+  const actions = document.createElement("div");
+  actions.style.display = "flex";
+  actions.style.justifyContent = "flex-end";
+  actions.style.gap = "8px";
+  actions.style.marginTop = "8px";
+
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.textContent = "Cancel";
+  cancel.setAttribute("data-markable-cancel", "");
 
   const submit = document.createElement("button");
   submit.type = "submit";
@@ -161,17 +207,87 @@ function createPanel() {
   status.style.margin = "8px 0 0";
   status.style.fontSize = "12px";
 
-  panel.append(textarea, submit, status);
+  actions.append(cancel, submit);
+  panel.append(target, textarea, actions, status);
   return panel;
 }
 
-function currentTarget() {
+function createOverlay() {
+  const overlay = document.createElement("div");
+  overlay.setAttribute("data-markable-highlight", "");
+  overlay.style.position = "fixed";
+  overlay.style.zIndex = "2147483646";
+  overlay.style.pointerEvents = "none";
+  overlay.style.border = "2px solid #2563eb";
+  overlay.style.borderRadius = "6px";
+  overlay.style.boxShadow = "0 0 0 4px rgba(37, 99, 235, 0.18)";
+  overlay.style.display = "none";
+  return overlay;
+}
+
+function isMarkableElement(element) {
+  return Boolean(element?.closest?.("[data-markable-control], [data-markable-panel], [data-markable-highlight]"));
+}
+
+function selectorFor(element) {
+  if (element.id) return "#" + cssEscape(element.id);
+  const parts = [];
+  let current = element;
+  while (current && current.nodeType === Node.ELEMENT_NODE && current !== document.body) {
+    const tag = current.tagName.toLowerCase();
+    const parent = current.parentElement;
+    if (!parent) {
+      parts.unshift(tag);
+      break;
+    }
+    const siblings = Array.from(parent.children).filter(child => child.tagName === current.tagName);
+    parts.unshift(siblings.length === 1 ? tag : tag + ":nth-of-type(" + (siblings.indexOf(current) + 1) + ")");
+    current = parent;
+  }
+  return parts.join(" > ");
+}
+
+function cssEscape(value) {
+  return window.CSS?.escape ? window.CSS.escape(value) : value.replace(/[^a-zA-Z0-9_-]/g, "\\$&");
+}
+
+function elementTarget(element) {
+  const rect = element.getBoundingClientRect();
+  const locator = {
+    tag: element.tagName.toLowerCase(),
+    selector: selectorFor(element),
+    dataMarkableId: element.getAttribute("data-markable-id") || undefined,
+    id: element.id || undefined,
+    classes: element.classList.length ? Array.from(element.classList).slice(0, 8) : undefined,
+    ariaLabel: element.getAttribute("aria-label") || undefined,
+    role: element.getAttribute("role") || undefined,
+    textSnippet: (element.innerText || element.textContent || "").trim().replace(/\s+/g, " ").slice(0, 160) || undefined
+  };
+  return {
+    kind: "dom_element",
+    locator,
+    rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+  };
+}
+
+function textTarget() {
   const selection = document.getSelection();
-  const quote = selection && !selection.isCollapsed ? selection.toString() : undefined;
+  if (!selection || selection.isCollapsed) return null;
+  const range = selection.getRangeAt(0);
+  const rect = range.getBoundingClientRect();
   return {
     kind: "dom_range",
+    locator: { url: location.href, startOffset: range.startOffset, endOffset: range.endOffset },
+    quote: selection.toString(),
+    rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+  };
+}
+
+function currentTarget() {
+  return selectedTarget || textTarget() || {
+    kind: "dom_range",
     locator: { url: location.href },
-    quote
+    quote: undefined
   };
 }
 
@@ -184,15 +300,95 @@ function context() {
   };
 }
 
-const trigger = document.querySelector("[data-markable-trigger]") || createButton();
+function setMode(nextMode) {
+  selectionMode = nextMode;
+  candidateElement = null;
+  if (nextMode !== "element") hideOverlay();
+  control.querySelectorAll("[data-markable-mode]").forEach(button => {
+    const active = button.value === selectionMode;
+    button.style.background = active ? "Highlight" : "transparent";
+    button.style.color = active ? "HighlightText" : "inherit";
+  });
+}
+
+function showOverlayFor(element) {
+  const rect = element.getBoundingClientRect();
+  overlay.style.display = "block";
+  overlay.style.left = rect.x + "px";
+  overlay.style.top = rect.y + "px";
+  overlay.style.width = rect.width + "px";
+  overlay.style.height = rect.height + "px";
+}
+
+function hideOverlay() {
+  overlay.style.display = "none";
+}
+
+function targetAtPoint(clientX, clientY) {
+  const element = document.elementFromPoint(clientX, clientY);
+  if (!element || isMarkableElement(element)) return null;
+  return element.closest("[data-markable-id]") || element;
+}
+
+function openPanel(target) {
+  selectedTarget = target || textTarget();
+  const summary = panel.querySelector("[data-markable-target-summary]");
+  if (summary) {
+    if (selectedTarget?.kind === "dom_element") {
+      const locator = selectedTarget.locator;
+      summary.textContent = "Feedback target: " + (locator.dataMarkableId || locator.id || locator.ariaLabel || locator.selector || locator.tag);
+    } else if (selectedTarget?.quote) {
+      summary.textContent = "Feedback target: selected text — “" + selectedTarget.quote.slice(0, 80) + "”";
+    } else {
+      summary.textContent = "Feedback target: current page";
+    }
+  }
+  panel.style.display = "block";
+  panel.querySelector("[data-markable-input]")?.focus();
+}
+
+const control = document.querySelector("[data-markable-control]") || createControl();
 const panel = document.querySelector("[data-markable-panel]") || createPanel();
+const overlay = document.querySelector("[data-markable-highlight]") || createOverlay();
 
-if (!trigger.isConnected) document.body.append(trigger);
+if (!control.isConnected) document.body.append(control);
 if (!panel.isConnected) document.body.append(panel);
+if (!overlay.isConnected) document.body.append(overlay);
 
-trigger.addEventListener("click", () => {
-  panel.style.display = panel.style.display === "none" ? "block" : "none";
+control.addEventListener("click", event => {
+  const button = event.target.closest?.("[data-markable-mode]");
+  if (!button) return;
+  setMode(button.value);
+  if (button.value === "text") openPanel(textTarget());
 });
+
+panel.querySelector("[data-markable-cancel]")?.addEventListener("click", () => {
+  panel.style.display = "none";
+  selectedTarget = null;
+});
+
+document.addEventListener("pointermove", event => {
+  if (selectionMode !== "element") return;
+  const element = targetAtPoint(event.clientX, event.clientY);
+  if (!element) {
+    candidateElement = null;
+    hideOverlay();
+    return;
+  }
+  candidateElement = element;
+  showOverlayFor(element);
+}, true);
+
+document.addEventListener("click", event => {
+  if (selectionMode !== "element") return;
+  const element = candidateElement || targetAtPoint(event.clientX, event.clientY);
+  if (!element) return;
+  event.preventDefault();
+  event.stopPropagation();
+  setMode("browse");
+  showOverlayFor(element);
+  openPanel(elementTarget(element));
+}, true);
 
 panel.addEventListener("submit", async event => {
   event.preventDefault();
@@ -220,6 +416,8 @@ panel.addEventListener("submit", async event => {
     if (status) status.textContent = "Annotation saved.";
     panel.reset();
     panel.style.display = "none";
+    selectedTarget = null;
+    hideOverlay();
   } catch (error) {
     console.warn("markable: unable to persist annotation", error, annotation);
     if (status) {
