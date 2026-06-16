@@ -2,6 +2,7 @@ export type MarkableMode = "review" | "feedback";
 
 export type MarkableTargetKind =
   | "dom_range"
+  | "dom_element"
   | "text_range"
   | "line_range"
   | "cell_range"

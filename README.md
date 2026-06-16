@@ -79,6 +79,10 @@ artifact
 
 Initial scaffold.
 
+## Inspiration
+
+The production feedback selection UX is inspired by [`u-ichi/reviewable-html-workbench`](https://github.com/u-ichi/reviewable-html-workbench), particularly its clear review state, contextual highlighting, and visually anchored comments. `markable` generalizes that interaction pattern for production web app feedback while keeping the core package headless.
+
 ## Demo app
 
 A lightweight Vue 3 + Vite Todo demo lives in `examples/vite-todo`. It is intentionally small so the markable integration is easy to inspect:
@@ -99,7 +103,7 @@ markable({
 });
 ```
 
-In Vite development mode, `mode: "auto"` resolves to review mode. Select Todo text, click the floating Mark button, and submit a review annotation. The dev server endpoint writes structured annotation JSON to `.markable/comments.json` inside the demo app.
+In Vite development mode, `mode: "auto"` resolves to review mode. Use the floating segmented control to switch between Browse, Select element, and Select text modes. In Select element mode, hover or tap a Todo UI element to highlight it, then click/tap to open the composer for that target. You can still use Select text mode to submit review annotations for selected text. The dev server endpoint writes structured annotation JSON to `.markable/comments.json` inside the demo app.
 
 In production builds, `mode: "auto"` resolves to feedback mode. The floating control becomes user-facing feedback UI and captures page context such as URL, title, viewport, user agent, and the optional selected quote.
 
