@@ -108,7 +108,7 @@ export function createMarkable(options: CreateMarkableOptions): MarkableRuntime 
         status: "open",
         context: options.adapter.getContext?.(),
         createdAt: timestamp,
-        updatedAt: timestamp
+        updatedAt: timestamp,
       };
 
       await options.store.save(annotation);
@@ -122,9 +122,9 @@ export function createMarkable(options: CreateMarkableOptions): MarkableRuntime 
       }
       await options.store.update(id, {
         status,
-        updatedAt: now().toISOString()
+        updatedAt: now().toISOString(),
       });
-    }
+    },
   };
 }
 

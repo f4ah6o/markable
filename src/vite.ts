@@ -32,10 +32,10 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
           tag: "script",
           attrs: {
             type: "module",
-            src: "/@markable/client"
+            src: "/@markable/client",
           },
-          injectTo: "body"
-        }
+          injectTo: "body",
+        },
       ];
     },
 
@@ -72,7 +72,7 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
     load(id) {
       if (id !== "/@markable/client") return null;
       return clientSource(endpoint, resolvedMode);
-    }
+    },
   };
 }
 
@@ -94,7 +94,7 @@ async function readAnnotations(file: string): Promise<MarkableAnnotation[]> {
 function readBody(req: NodeJS.ReadableStream): Promise<string> {
   return new Promise((resolve, reject) => {
     let body = "";
-    req.on("data", chunk => {
+    req.on("data", (chunk) => {
       body += chunk;
     });
     req.on("end", () => resolve(body));
@@ -102,7 +102,13 @@ function readBody(req: NodeJS.ReadableStream): Promise<string> {
   });
 }
 
-function sendJson(res: NodeJS.WritableStream & { setHeader(name: string, value: string): void; statusCode?: number }, value: unknown) {
+function sendJson(
+  res: NodeJS.WritableStream & {
+    setHeader(name: string, value: string): void;
+    statusCode?: number;
+  },
+  value: unknown,
+) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.end(JSON.stringify(value));
 }
