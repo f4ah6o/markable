@@ -22,24 +22,44 @@ Subpath exports are used for integrations:
 ```ts
 import { createMarkable } from "@f12o/markable/core";
 import { createDomAdapter } from "@f12o/markable/dom";
-import { vitePlus } from "@f12o/markable/vite";
+import { markable } from "@f12o/markable/vite";
 ```
 
-## Vite Plus usage
+## Vite usage
 
 ```ts
 import { defineConfig } from "vite";
-import { vitePlus } from "@f12o/markable/vite";
+import { markable } from "@f12o/markable/vite";
 
 export default defineConfig({
   plugins: [
-    vitePlus({
+    markable({
       mode: process.env.NODE_ENV === "production" ? "feedback" : "review",
       commentsFile: ".markable/comments.json",
       endpoint: "/__markable/comments"
     })
   ]
 });
+```
+
+## Vite+ compatibility
+
+Vite+ is expected to run normal Vite plugins when it loads a Vite-compatible config. `markable` keeps the integration as a standard Vite plugin instead of exposing a Vite+-specific API.
+
+Initial compatibility target:
+
+```bash
+vp dev
+vp build
+```
+
+The plugin currently uses standard Vite hooks:
+
+```text
+transformIndexHtml
+configureServer
+resolveId
+load
 ```
 
 ## Core idea
