@@ -103,9 +103,9 @@ markable({
 });
 ```
 
-In Vite development mode, `mode: "auto"` resolves to review mode. Use the floating segmented control to switch between Browse, Select element, and Select text modes. In Select element mode, hover or tap a Todo UI element to highlight it, then click/tap to open the composer for that target. You can still use Select text mode to submit review annotations for selected text. The dev server endpoint writes structured annotation JSON to `.markable/comments.json` inside the demo app.
+In Vite development mode, `mode: "auto"` resolves to review mode. Use the floating Mark button to open a composer and toolbar, then choose Browse, Element, Text, or Box targeting. Element mode highlights the hovered Todo UI element and opens the composer when clicked. Text mode attaches the comment to the current text selection, and Box mode lets you drag a rectangular screen region. The dev server endpoint writes structured annotation JSON to `.markable/comments.json` inside the demo app.
 
-In production builds, `mode: "auto"` resolves to feedback mode. The floating control becomes user-facing feedback UI and captures page context such as URL, title, viewport, user agent, and the optional selected quote.
+In production builds, `mode: "auto"` resolves to feedback mode. The floating Feedback button opens a user-facing feedback panel with Feedback and Question tabs, the same element/text/box targeting toolbar, and an in-session list of recent submissions. Captured context includes URL, title, viewport, user agent, the active tab intent, and the optional selected quote or rectangle.
 
 ### GitHub Pages deployment
 
