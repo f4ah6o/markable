@@ -2,7 +2,6 @@
   "name": "@f12o/markable",
   "version": "0.1.0",
   "description": "Headless interaction layer for marking artifacts with structured feedback and rewrite annotations.",
-  "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -11,10 +10,7 @@
   "files": [
     "dist"
   ],
-  "scripts": {
-    "build": "tsup src/index.ts src/core.ts src/dom.ts src/vite.ts --format esm --dts",
-    "typecheck": "tsc --noEmit"
-  },
+  "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -33,6 +29,18 @@
       "import": "./dist/vite.js"
     }
   },
+  "scripts": {
+    "build": "tsup src/index.ts src/core.ts src/dom.ts src/vite.ts --format esm --dts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3",
+    "vite-plus": "^0.1.24",
+    "vitest": "^4.1.9"
+  },
   "peerDependencies": {
     "vite": ">=5"
   },
@@ -41,10 +49,5 @@
       "optional": true
     }
   },
-  "devDependencies": {
-    "@types/node": "^22.10.2",
-    "tsup": "^8.3.5",
-    "typescript": "^5.7.2",
-    "vite": "^6.0.3"
-  }
+  "packageManager": "pnpm@10.28.1"
 }

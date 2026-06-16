@@ -27,15 +27,15 @@ export function createDomAdapter(options: DomAdapterOptions = {}): MarkableAdapt
         locator: {
           selector: selectorFor(container),
           startOffset: range.startOffset,
-          endOffset: range.endOffset
+          endOffset: range.endOffset,
         },
         quote: selection.toString(),
         rect: {
           x: rect.x,
           y: rect.y,
           width: rect.width,
-          height: rect.height
-        }
+          height: rect.height,
+        },
       };
     },
 
@@ -45,15 +45,15 @@ export function createDomAdapter(options: DomAdapterOptions = {}): MarkableAdapt
         title: doc.title,
         viewport: {
           width: globalThis.innerWidth,
-          height: globalThis.innerHeight
+          height: globalThis.innerHeight,
         },
-        userAgent: globalThis.navigator?.userAgent
+        userAgent: globalThis.navigator?.userAgent,
       };
     },
 
     clearSelection() {
       doc.getSelection()?.removeAllRanges();
-    }
+    },
   };
 }
 
@@ -73,18 +73,21 @@ function selectorFor(element: Element): string {
   let current: Element | null = element;
 
   while (current && current.nodeType === Node.ELEMENT_NODE && current !== document.body) {
-    const tag = current.tagName.toLowerCase();
-    const parent = current.parentElement;
+    const currentElement: Element = current;
+    const tag = currentElement.tagName.toLowerCase();
+    const parent: Element | null = currentElement.parentElement;
     if (!parent) {
       parts.unshift(tag);
       break;
     }
 
-    const siblings = Array.from(parent.children).filter(child => child.tagName === current!.tagName);
+    const siblings = Array.from(parent.children).filter(
+      (child: Element) => child.tagName === currentElement.tagName,
+    );
     if (siblings.length === 1) {
       parts.unshift(tag);
     } else {
-      const index = siblings.indexOf(current) + 1;
+      const index = siblings.indexOf(currentElement) + 1;
       parts.unshift(`${tag}:nth-of-type(${index})`);
     }
 

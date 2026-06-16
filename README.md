@@ -36,9 +36,9 @@ export default defineConfig({
     markable({
       mode: process.env.NODE_ENV === "production" ? "feedback" : "review",
       commentsFile: ".markable/comments.json",
-      endpoint: "/__markable/comments"
-    })
-  ]
+      endpoint: "/__markable/comments",
+    }),
+  ],
 });
 ```
 
