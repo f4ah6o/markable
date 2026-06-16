@@ -76,8 +76,6 @@ export function vitePlus(options: MarkableViteOptions = {}): Plugin {
   };
 }
 
-export const markable = vitePlus;
-
 function resolveMode(mode: MarkableViteOptions["mode"], viteMode: string): MarkableMode {
   if (mode === "review" || mode === "feedback") return mode;
   return viteMode === "production" ? "feedback" : "review";
