@@ -1,6 +1,6 @@
 {
   "name": "@f12o/markable",
-  "version": "0.1.0",
+  "version": "2026.6.0",
   "description": "Headless interaction layer for marking artifacts with structured feedback and rewrite annotations.",
   "license": "MIT",
   "repository": {
@@ -10,6 +10,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "exports": {
     ".": {
@@ -31,6 +34,7 @@
   },
   "scripts": {
     "build": "tsup src/index.ts src/core.ts src/dom.ts src/vite.ts --format esm --dts",
+    "prepack": "pnpm build",
     "typecheck": "tsc --noEmit",
     "build:demo": "pnpm --filter @f12o/markable-vite-todo-demo build"
   },
