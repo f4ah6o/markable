@@ -1,0 +1,22 @@
+[
+  {
+    "id": "vue-todo",
+    "title": "Vue Todo",
+    "description": "Lightweight Vue 3 + Vite Todo demo for inspecting markable integration.",
+    "path": "examples/vite-todo",
+    "demoPath": "/vue-todo/",
+    "techStack": ["Vue 3", "TypeScript", "Vite", "Vitest"],
+    "sourceRepo": "https://github.com/hefengxian/vue3-ts-vite-vitest-todo",
+    "inspirationUrl": "https://github.com/hefengxian/vue3-ts-vite-vitest-todo"
+  },
+  {
+    "id": "shadcn-admin",
+    "title": "shadcn-admin",
+    "description": "Realistic React/shadcn dashboard demo with the markable overlay.",
+    "path": "examples/shadcn-admin",
+    "demoPath": "/shadcn-admin/",
+    "techStack": ["React", "shadcn/ui", "Tailwind CSS", "Vite"],
+    "sourceRepo": "https://github.com/satnaing/shadcn-admin",
+    "sourceCommit": "e16c87f213a5ba5e45964e9b67c792105ec74d26"
+  }
+]

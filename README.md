@@ -107,15 +107,41 @@ In Vite development mode, `mode: "auto"` resolves to review mode. Use the floati
 
 In production builds, `mode: "auto"` resolves to feedback mode. The floating Feedback button opens a user-facing feedback panel with Feedback and Question tabs, the same element/text/box targeting toolbar, and an in-session list of recent submissions. Captured context includes URL, title, viewport, user agent, the active tab intent, and the optional selected quote or rectangle.
 
+### shadcn-admin example
+
+A larger React dashboard example lives in `examples/shadcn-admin`. It vendors [`satnaing/shadcn-admin`](https://github.com/satnaing/shadcn-admin) at commit `e16c87f213a5ba5e45964e9b67c792105ec74d26` and adds the markable Vite plugin so the overlay can be exercised against a realistic shadcn UI:
+
+```bash
+pnpm install
+pnpm --filter @f12o/markable-shadcn-admin-demo dev
+pnpm --filter @f12o/markable-shadcn-admin-demo build
+```
+
+The example config uses the same local development endpoint as the Todo demo:
+
+```ts
+markable({
+  mode: "auto",
+  commentsFile: ".markable/comments.json",
+  endpoint: "/__markable/comments",
+});
+```
+
+In local development, submitted marks are persisted to `examples/shadcn-admin/.markable/comments.json`.
+
 ### GitHub Pages deployment
 
-The `Deploy demo to GitHub Pages` workflow builds the package, builds `examples/vite-todo`, and publishes the static output to GitHub Pages at:
+The `Deploy demo to GitHub Pages` workflow builds the package, builds the examples, generates an example index, and publishes the static output to GitHub Pages at:
 
 ```text
 https://f4ah6o.github.io/markable/
+https://f4ah6o.github.io/markable/vue-todo/
+https://f4ah6o.github.io/markable/shadcn-admin/
 ```
 
-GitHub Pages is static hosting, so it can demonstrate the Todo app and injected feedback overlay but cannot persist POSTed feedback to `/.markable` or `/.json` files. For public static deployments, treat submitted feedback as local/session-only unless a remote endpoint is configured.
+The index page is generated from `examples/examples.json` by `scripts/build-pages-index.mjs`, so new examples can be added to the listing by updating the manifest.
+
+GitHub Pages is static hosting, so it can demonstrate the example apps and injected feedback overlay but cannot persist POSTed feedback to `/.markable` or `/.json` files. For public static deployments, treat submitted feedback as local/session-only unless a remote endpoint is configured.
 
 ### Cloudflare Workers follow-up
 
