@@ -7,6 +7,11 @@
     "demoPath": "/vue-todo/",
     "techStack": ["Vue 3", "TypeScript", "Vite", "Vitest"],
     "sourceRepo": "https://github.com/hefengxian/vue3-ts-vite-vitest-todo",
+    "sourceCommit": "5c1cf7b1276273af6b546894823eb78573868c5f",
+    "sourceLicense": {
+      "name": "MIT",
+      "url": "https://github.com/hefengxian/vue3-ts-vite-vitest-todo/blob/5c1cf7b1276273af6b546894823eb78573868c5f/LICENSE"
+    },
     "inspirationUrl": "https://github.com/hefengxian/vue3-ts-vite-vitest-todo"
   },
   {
@@ -17,6 +22,10 @@
     "demoPath": "/shadcn-admin/",
     "techStack": ["React", "shadcn/ui", "Tailwind CSS", "Vite"],
     "sourceRepo": "https://github.com/satnaing/shadcn-admin",
-    "sourceCommit": "e16c87f213a5ba5e45964e9b67c792105ec74d26"
+    "sourceCommit": "e16c87f213a5ba5e45964e9b67c792105ec74d26",
+    "sourceLicense": {
+      "name": "MIT",
+      "url": "https://github.com/satnaing/shadcn-admin/blob/e16c87f213a5ba5e45964e9b67c792105ec74d26/LICENSE"
+    }
   }
 ]
