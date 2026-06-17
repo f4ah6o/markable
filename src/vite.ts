@@ -119,6 +119,22 @@ function sendJson(
   res.end(JSON.stringify(value));
 }
 
+export interface MarkableClientScriptOptions {
+  mode: MarkableMode;
+  endpoint?: string;
+  poweredBy?: boolean;
+  locale?: MarkableLocale;
+}
+
+export function markableClientScript(options: MarkableClientScriptOptions): string {
+  return clientSource(
+    options.endpoint ?? "/__markable/comments",
+    options.mode,
+    options.poweredBy ?? true,
+    options.locale ?? "en",
+  );
+}
+
 function clientSource(
   endpoint: string,
   mode: MarkableMode,
