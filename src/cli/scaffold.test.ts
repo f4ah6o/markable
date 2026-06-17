@@ -64,11 +64,11 @@ describe("ensureDevDependency", () => {
     expect(result.pkg).toBe(pkg);
   });
 
-  it("keeps devDependencies sorted", () => {
+  it("appends without reordering existing entries", () => {
     const result = ensureDevDependency({ devDependencies: { zod: "^3.0.0" } }, PACKAGE_NAME, "^1.0.0");
     expect(Object.keys(result.pkg.devDependencies as Record<string, string>)).toEqual([
-      PACKAGE_NAME,
       "zod",
+      PACKAGE_NAME,
     ]);
   });
 });

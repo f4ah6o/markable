@@ -10,9 +10,10 @@
  *
  *     detach(attach(before)) === before
  *
- * plus a balanced-bracket parse proxy. If the round trip is not byte-exact, the
- * source does not parse, or the shape is unsupported, the edit is refused and
- * the caller falls back to a manual snippet — a config is never corrupted.
+ * plus a Tree-sitter re-parse of the result. If the round trip is not
+ * byte-exact, the edited source does not parse, or the shape is unsupported, the
+ * edit is refused and the caller falls back to a manual snippet — a config is
+ * never corrupted.
  *
  * Supported shapes:
  *   export default defineConfig({ ... })
@@ -90,11 +91,28 @@ function detectPresence(
     .query("(import_statement source: (string) @s)")
     .captures(root)
     .some((capture) => unquote(capture.node.text) === MARKABLE_VITE_SPECIFIER);
-  const pluginHit = language
-    .query("(call_expression function: (identifier) @f)")
-    .captures(root)
-    .some((capture) => capture.node.text === "markable");
-  return { import: importHit, plugin: pluginHit };
+  return { import: importHit, plugin: markableInPlugins(language, root) };
+}
+
+/** True only when a `markable(...)` call is an element of a `plugins:` array. */
+function markableInPlugins(
+  language: Parser.Language,
+  root: Parser.SyntaxNode,
+): boolean {
+  const matches = language
+    .query("(pair key: [(property_identifier) (string)] @k value: (array) @arr)")
+    .matches(root);
+  for (const match of matches) {
+    const key = captureNode(match, "k");
+    const array = captureNode(match, "arr");
+    if (!key || !array || unquote(key.text) !== "plugins") continue;
+    for (const element of array.namedChildren) {
+      if (element.type !== "call_expression") continue;
+      const fn = element.childForFieldName("function");
+      if (fn?.type === "identifier" && fn.text === "markable") return true;
+    }
+  }
+  return false;
 }
 
 function locateConfigObject(

@@ -1,4 +1,6 @@
+import { Buffer } from "node:buffer";
 import fs from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Plugin } from "vite";
@@ -140,10 +142,10 @@ const MARKABLE_CONFIG_FILES = [
 
 /**
  * Load options from a Markable-owned `markable.config.*` file in the project
- * root. TypeScript configs are transpiled with Vite's bundled esbuild and
- * imported from a temporary file inside `node_modules` so that the
- * `@f12o/markable/config` import resolves. Any failure falls back to defaults
- * rather than breaking the dev server.
+ * root. TypeScript configs are bundled with esbuild into a self-contained module
+ * (so both bare `@f12o/markable/config` and relative `./foo` imports resolve
+ * exactly as they would in the original file) and imported via a data URL. Any
+ * failure falls back to defaults rather than breaking the dev server.
  */
 export async function loadMarkableConfig(root: string): Promise<MarkableConfig> {
   let file: string | undefined;
@@ -165,28 +167,49 @@ export async function loadMarkableConfig(root: string): Promise<MarkableConfig> 
       return (mod.default ?? {}) as MarkableConfig;
     }
 
-    const { transformWithEsbuild } = await import("vite");
-    const raw = await fs.readFile(file, "utf8");
-    const { code } = await transformWithEsbuild(raw, file, {
-      loader: "ts",
+    const esbuild = await loadEsbuild();
+    const { outputFiles } = await esbuild.build({
+      entryPoints: [file],
+      bundle: true,
+      write: false,
       format: "esm",
+      platform: "node",
+      logLevel: "silent",
     });
-    const dir = path.join(root, "node_modules", ".markable");
-    await fs.mkdir(dir, { recursive: true });
-    const tmp = path.join(dir, `config.${process.pid}.${Date.now()}.mjs`);
-    await fs.writeFile(tmp, code);
-    try {
-      const mod = await import(pathToFileURL(tmp).href);
-      return (mod.default ?? {}) as MarkableConfig;
-    } finally {
-      await fs.rm(tmp, { force: true });
-    }
+    const code = outputFiles[0].text;
+    const url = `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`;
+    const mod = await import(url);
+    return (mod.default ?? {}) as MarkableConfig;
   } catch (error) {
     console.warn(
       `markable: failed to load ${path.basename(file)}:`,
       error instanceof Error ? error.message : error,
     );
     return {};
+  }
+}
+
+interface EsbuildLike {
+  build(options: {
+    entryPoints: string[];
+    bundle: boolean;
+    write: boolean;
+    format: "esm";
+    platform: "node";
+    logLevel: "silent";
+  }): Promise<{ outputFiles: { text: string }[] }>;
+}
+
+/** Resolve esbuild, preferring the copy that ships with Vite. */
+async function loadEsbuild(): Promise<EsbuildLike> {
+  const require = createRequire(import.meta.url);
+  try {
+    const viteRequire = createRequire(require.resolve("vite"));
+    const url = pathToFileURL(viteRequire.resolve("esbuild")).href;
+    return (await import(url)) as EsbuildLike;
+  } catch {
+    const specifier = "esbuild";
+    return (await import(specifier)) as EsbuildLike;
   }
 }
 

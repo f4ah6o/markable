@@ -12,6 +12,14 @@ export const VITE_CONFIG_FILES = [
 ];
 
 export const MARKABLE_CONFIG_FILE = "markable.config.ts";
+export const MARKABLE_CONFIG_FILES = [
+  "markable.config.ts",
+  "markable.config.mts",
+  "markable.config.mjs",
+  "markable.config.js",
+  "markable.config.cjs",
+  "markable.config.cts",
+];
 export const GITIGNORE_ENTRY = ".markable/";
 export const INSTALL_METADATA_FILE = ".markable/install.json";
 export const PACKAGE_NAME = "@f12o/markable";
@@ -68,19 +76,12 @@ export function ensureDevDependency(
 ): PackageJsonResult {
   const dev = (pkg.devDependencies as Record<string, string> | undefined) ?? {};
   if (dev[name]) return { changed: false, pkg };
+  // Append without reordering existing entries to keep the diff minimal.
   const updated: Record<string, unknown> = {
     ...pkg,
-    devDependencies: sortKeys({ ...dev, [name]: version }),
+    devDependencies: { ...dev, [name]: version },
   };
   return { changed: true, pkg: updated };
-}
-
-function sortKeys(record: Record<string, string>): Record<string, string> {
-  return Object.fromEntries(
-    Object.keys(record)
-      .sort()
-      .map((key) => [key, record[key]]),
-  );
 }
 
 export function markableConfigTemplate(): string {
@@ -97,11 +98,13 @@ export default defineMarkableConfig({
 
 export interface InstallMetadata {
   version: number;
-  viteConfig: string;
   binding: string;
-  beforeHash: string;
-  afterHash: string;
-  edits: EditRecord[];
+  viteConfig?: string;
+  beforeHash?: string;
+  afterHash?: string;
+  edits?: EditRecord[];
+  markableConfig?: string;
+  markableConfigHash?: string;
 }
 
 export function manualSnippet(): string {

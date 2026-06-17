@@ -127,4 +127,18 @@ describe("hasMarkable", () => {
     const presence = await hasMarkable(fixture("define-config-with-plugins.ts"));
     expect(presence).toEqual({ import: false, plugin: false });
   });
+
+  it("ignores a markable() call outside the plugins array", async () => {
+    const code = [
+      "const markable = () => ({});",
+      "const shared = markable();",
+      "export default defineConfig({ plugins: [react()] });",
+    ].join("\n");
+    const presence = await hasMarkable(code);
+    expect(presence.plugin).toBe(false);
+    // ...and attach adds it into the plugins array
+    const result = await attachMarkable(code);
+    expect(result.status).toBe("changed");
+    expect(result.code).toContain("plugins: [markable(), react()]");
+  });
 });

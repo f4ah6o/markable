@@ -19,6 +19,7 @@ import {
   GITIGNORE_ENTRY,
   INSTALL_METADATA_FILE,
   MARKABLE_CONFIG_FILE,
+  MARKABLE_CONFIG_FILES,
   PACKAGE_NAME,
   VITE_CONFIG_FILES,
   type InstallMetadata,
@@ -128,6 +129,13 @@ async function detectViteConfig(root: string): Promise<string | undefined> {
   return undefined;
 }
 
+async function detectMarkableConfig(root: string): Promise<string | undefined> {
+  for (const name of MARKABLE_CONFIG_FILES) {
+    if (await exists(path.join(root, name))) return name;
+  }
+  return undefined;
+}
+
 function hashOf(content: string): string {
   return createHash("sha256").update(content).digest("hex");
 }
@@ -149,6 +157,12 @@ async function runInit(root: string): Promise<number> {
   const rootFiles = await listRootFiles(root);
   const pm = detectPackageManager(rootFiles);
   const summary: string[] = [];
+  // Preserve any previously recorded ownership info across re-runs.
+  const metadata: InstallMetadata = {
+    version: 1,
+    binding: "markable",
+    ...(await readInstallMetadata(root)),
+  };
 
   // 1. devDependency
   const pkgRaw = await fs.readFile(pkgPath, "utf8");
@@ -161,18 +175,20 @@ async function runInit(root: string): Promise<number> {
     summary.push(`${PACKAGE_NAME} already a devDependency`);
   }
 
-  // 2. markable.config.ts
-  const configPath = path.join(root, MARKABLE_CONFIG_FILE);
-  if (await exists(configPath)) {
-    summary.push(`${MARKABLE_CONFIG_FILE} already present`);
+  // 2. markable.config.* (only the file we create is recorded as CLI-owned)
+  const existingConfig = await detectMarkableConfig(root);
+  if (existingConfig) {
+    summary.push(`${existingConfig} already present`);
   } else {
-    await writeFileAtomic(configPath, markableConfigTemplate());
+    const template = markableConfigTemplate();
+    await writeFileAtomic(path.join(root, MARKABLE_CONFIG_FILE), template);
+    metadata.markableConfig = MARKABLE_CONFIG_FILE;
+    metadata.markableConfigHash = hashOf(template);
     summary.push(`created ${MARKABLE_CONFIG_FILE}`);
   }
 
   // 3. vite.config.* plugin wiring
   const viteConfig = await detectViteConfig(root);
-  let edits: EditRecord[] = [];
   let viteHandled = true;
   if (!viteConfig) {
     cli.error("No vite.config.{ts,js,mts,mjs} found. Add the plugin manually:\n");
@@ -187,17 +203,11 @@ async function runInit(root: string): Promise<number> {
       summary.push(`${viteConfig} already wires up markable()`);
     } else if (result.status === "changed") {
       await writeFileAtomic(vitePath, result.code);
-      edits = result.edits;
+      metadata.viteConfig = viteConfig;
+      metadata.beforeHash = hashOf(before);
+      metadata.afterHash = hashOf(result.code);
+      metadata.edits = result.edits;
       summary.push(`added markable() to ${viteConfig}`);
-      const metadata: InstallMetadata = {
-        version: 1,
-        viteConfig,
-        binding: "markable",
-        beforeHash: hashOf(before),
-        afterHash: hashOf(result.code),
-        edits,
-      };
-      await writeInstallMetadata(root, metadata);
     } else {
       viteHandled = false;
       cli.error(
@@ -206,6 +216,10 @@ async function runInit(root: string): Promise<number> {
       cli.error(manualSnippet());
       cli.error("");
     }
+  }
+
+  if (metadata.viteConfig || metadata.markableConfig) {
+    await writeInstallMetadata(root, metadata);
   }
 
   // 4. .gitignore
@@ -263,15 +277,17 @@ async function runDoctor(root: string): Promise<number> {
     wired = presence.import && presence.plugin;
   }
 
-  const hasConfig = await exists(path.join(root, MARKABLE_CONFIG_FILE));
+  const markableConfig = await detectMarkableConfig(root);
+  const hasConfig = Boolean(markableConfig);
   const gitignore = (await exists(path.join(root, ".gitignore")))
     ? await fs.readFile(path.join(root, ".gitignore"), "utf8")
     : "";
   const ignored = !ensureGitignoreEntry(gitignore).changed;
 
   const metadata = await readInstallMetadata(root);
+  const tracksVite = Boolean(metadata?.afterHash && metadata.viteConfig === viteConfig);
   let drift = false;
-  if (metadata && viteConfig) {
+  if (metadata && tracksVite && viteConfig) {
     const current = await fs.readFile(path.join(root, viteConfig), "utf8");
     drift = hashOf(current) !== metadata.afterHash;
   }
@@ -281,9 +297,9 @@ async function runDoctor(root: string): Promise<number> {
   cli.log(`  ${check(hasDep)} ${PACKAGE_NAME} in devDependencies`);
   cli.log(`  ${check(Boolean(viteConfig))} Vite config detected${viteConfig ? ` (${viteConfig})` : ""}`);
   cli.log(`  ${check(wired)} markable() wired into the Vite config`);
-  cli.log(`  ${check(hasConfig)} ${MARKABLE_CONFIG_FILE} present`);
+  cli.log(`  ${check(hasConfig)} ${markableConfig ?? MARKABLE_CONFIG_FILE} present`);
   cli.log(`  ${check(ignored)} ${GITIGNORE_ENTRY} ignored by git`);
-  if (metadata) {
+  if (tracksVite) {
     cli.log(`  ${check(!drift)} Vite config matches CLI-owned edits`);
   }
 
@@ -298,34 +314,48 @@ async function runRemove(root: string): Promise<number> {
     return 1;
   }
 
-  const vitePath = path.join(root, metadata.viteConfig);
-  if (!(await exists(vitePath))) {
-    cli.error(`${metadata.viteConfig} no longer exists; skipping Vite config edit.`);
-  } else {
-    const current = await fs.readFile(vitePath, "utf8");
-    if (hashOf(current) !== metadata.afterHash) {
-      cli.error(
-        `${metadata.viteConfig} has changed since \`markable init\`. ` +
-          "Remove the markable() plugin and its import manually.",
-      );
-      return 1;
+  // 1. Revert the Vite config (only while it matches what the CLI wrote).
+  if (metadata.viteConfig && metadata.edits && metadata.afterHash && metadata.beforeHash) {
+    const vitePath = path.join(root, metadata.viteConfig);
+    if (!(await exists(vitePath))) {
+      cli.error(`${metadata.viteConfig} no longer exists; skipping Vite config edit.`);
+    } else {
+      const current = await fs.readFile(vitePath, "utf8");
+      if (hashOf(current) !== metadata.afterHash) {
+        cli.error(
+          `${metadata.viteConfig} has changed since \`markable init\`. ` +
+            "Remove the markable() plugin and its import manually.",
+        );
+        return 1;
+      }
+      const reverted = detachMarkable(current, metadata.edits);
+      if (hashOf(reverted) !== metadata.beforeHash) {
+        cli.error(
+          `Could not cleanly revert ${metadata.viteConfig}. Remove the markable() plugin manually.`,
+        );
+        return 1;
+      }
+      await writeFileAtomic(vitePath, reverted);
+      cli.log(`Removed markable() from ${metadata.viteConfig}`);
     }
-    const reverted = detachMarkable(current, metadata.edits);
-    if (hashOf(reverted) !== metadata.beforeHash) {
-      cli.error(
-        `Could not cleanly revert ${metadata.viteConfig}. Remove the markable() plugin manually.`,
-      );
-      return 1;
-    }
-    await writeFileAtomic(vitePath, reverted);
-    cli.log(`Removed markable() from ${metadata.viteConfig}`);
   }
 
-  const configPath = path.join(root, MARKABLE_CONFIG_FILE);
-  if (await exists(configPath)) {
-    await fs.rm(configPath, { force: true });
-    cli.log(`Removed ${MARKABLE_CONFIG_FILE}`);
+  // 2. Remove markable.config only if it is unchanged since the CLI wrote it.
+  if (metadata.markableConfig) {
+    const configPath = path.join(root, metadata.markableConfig);
+    if (await exists(configPath)) {
+      const current = await fs.readFile(configPath, "utf8");
+      if (metadata.markableConfigHash && hashOf(current) === metadata.markableConfigHash) {
+        await fs.rm(configPath, { force: true });
+        cli.log(`Removed ${metadata.markableConfig}`);
+      } else {
+        cli.error(
+          `${metadata.markableConfig} has changed since \`markable init\`; leaving it in place.`,
+        );
+      }
+    }
   }
+
   await fs.rm(path.join(root, INSTALL_METADATA_FILE), { force: true });
 
   cli.log("");
