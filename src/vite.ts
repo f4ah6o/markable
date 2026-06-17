@@ -125,6 +125,7 @@ export interface MarkableClientScriptOptions {
   endpoint?: string;
   poweredBy?: boolean;
   locale?: MarkableLocale;
+  issueRepo?: string;
 }
 
 export function markableClientScript(options: MarkableClientScriptOptions): string {
@@ -133,6 +134,7 @@ export function markableClientScript(options: MarkableClientScriptOptions): stri
     options.mode,
     options.poweredBy ?? true,
     options.locale ?? "en",
+    options.issueRepo,
   );
 }
 
