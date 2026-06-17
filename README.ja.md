@@ -33,6 +33,7 @@ export default defineConfig({
   plugins: [
     markable({
       mode: "auto",
+      locale: "en",
       commentsFile: ".markable/comments.json",
       endpoint: "/__markable/comments",
       // 既定の "Powered by Markable" フッターリンクを非表示にするには false にします。
@@ -43,6 +44,17 @@ export default defineConfig({
 ```
 
 `mode: "auto"` は Vite の開発時に review モード、本番ビルド時に feedback モードへ解決されます。
+
+## UI の言語
+
+Markable が注入する UI は英語と日本語に対応しています。既定値は英語です。
+
+```ts
+markable({ locale: "en" }); // English、既定値
+markable({ locale: "ja" }); // 日本語
+```
+
+対象となる文言には、フローティングボタン、入力パネル、タブ、プレースホルダー、対象表示、最近の投稿一覧、コピー結果、送信結果が含まれます。選択された言語は、送信する注釈の `context.markableLocale` にも記録されます。
 
 ## UI の使い方
 

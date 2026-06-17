@@ -3,12 +3,15 @@ import path from "node:path";
 import type { Plugin } from "vite";
 import type { MarkableAnnotation, MarkableMode } from "./core";
 
+export type MarkableLocale = "ja" | "en";
+
 export interface MarkableViteOptions {
   mode?: MarkableMode | "auto";
   commentsFile?: string;
   endpoint?: string;
   inject?: boolean;
   poweredBy?: boolean;
+  locale?: MarkableLocale;
 }
 
 export function markable(options: MarkableViteOptions = {}): Plugin {
@@ -16,6 +19,7 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
   const commentsFile = options.commentsFile ?? ".markable/comments.json";
   const inject = options.inject ?? true;
   const poweredBy = options.poweredBy ?? true;
+  const locale = options.locale ?? "en";
   let root = process.cwd();
   let resolvedMode: MarkableMode = "review";
 
@@ -35,7 +39,7 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
           attrs: {
             type: "module",
           },
-          children: clientSource(endpoint, resolvedMode, poweredBy),
+          children: clientSource(endpoint, resolvedMode, poweredBy, locale),
           injectTo: "body",
         },
       ];
@@ -73,7 +77,7 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
 
     load(id) {
       if (id !== "/@markable/client") return null;
-      return clientSource(endpoint, resolvedMode, poweredBy);
+      return clientSource(endpoint, resolvedMode, poweredBy, locale);
     },
   };
 }
@@ -115,10 +119,16 @@ function sendJson(
   res.end(JSON.stringify(value));
 }
 
-function clientSource(endpoint: string, mode: MarkableMode, poweredBy: boolean): string {
+function clientSource(
+  endpoint: string,
+  mode: MarkableMode,
+  poweredBy: boolean,
+  locale: MarkableLocale,
+): string {
   return `
 const endpoint = ${JSON.stringify(endpoint)};
 const mode = ${JSON.stringify(mode)};
+const locale = ${JSON.stringify(locale)};
 const poweredByFooter = ${JSON.stringify(poweredBy ? '<footer data-markable-powered-by style="margin-top:10px;padding-top:10px;border-top:1px solid #e5e7eb;text-align:right;color:#6b7280;font-size:11px">Powered by <a href="https://github.com/f4ah6o/markable/" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none">Markable</a></footer>' : "")};
 let candidateElement = null;
 let selectedElement = null;
@@ -128,28 +138,85 @@ let dragStart = null;
 let activeTab = "primary";
 const annotations = [];
 
-const labels = {
-  review: {
-    launcher: "マーク",
-    panelTitle: "このページをマーク",
-    tabPrimary: "コメント",
-    tabSecondary: "AIに依頼",
-    placeholder: "レビューコメントを入力",
-    submit: "マークを保存",
-    helper: "ハイライトされた要素をクリック、空白をドラッグ、またはページ全体のフィードバックを保存できます。",
-    empty: "まだマークはありません。"
+const messages = {
+  ja: {
+    close: "閉じる",
+    cancel: "キャンセル",
+    targetElement: "対象: ",
+    targetBox: "対象: 選択した画面範囲",
+    targetPage: "対象: 現在のページ",
+    recentReview: "最近のマーク",
+    recentFeedback: "最近のフィードバック",
+    copyJson: "マークJSONをコピー",
+    copyJsonTitle: "JSONをコピー",
+    copied: "コピー済み",
+    copyFailed: "コピー失敗",
+    persistedReview: "マークを保存しました。",
+    persistedFeedback: "ありがとうございます。フィードバックを送信しました。",
+    localOnly: "ローカルに記録しました。永続化するにはエンドポイントを設定してください。",
+    review: {
+      launcher: "マーク",
+      panelTitle: "このページをマーク",
+      tabPrimary: "コメント",
+      tabSecondary: "AIに依頼",
+      placeholder: "レビューコメントを入力",
+      secondaryPlaceholder: "AIに依頼したい変更内容を入力",
+      submit: "マークを保存",
+      helper: "ハイライトされた要素をクリック、空白をドラッグ、またはページ全体のフィードバックを保存できます。",
+      empty: "まだマークはありません。"
+    },
+    feedback: {
+      launcher: "フィードバック",
+      panelTitle: "フィードバックを送信",
+      tabPrimary: "フィードバック",
+      tabSecondary: "質問",
+      placeholder: "このページへのフィードバックを入力",
+      secondaryPlaceholder: "このページについて質問する",
+      submit: "送信",
+      helper: "ハイライトされた要素をクリック、空白をドラッグ、またはページ全体のフィードバックを送信できます。",
+      empty: "このセッションではまだフィードバックがありません。"
+    }
   },
-  feedback: {
-    launcher: "フィードバック",
-    panelTitle: "フィードバックを送信",
-    tabPrimary: "フィードバック",
-    tabSecondary: "質問",
-    placeholder: "このページへのフィードバックを入力",
-    submit: "送信",
-    helper: "ハイライトされた要素をクリック、空白をドラッグ、またはページ全体のフィードバックを送信できます。",
-    empty: "このセッションではまだフィードバックがありません。"
+  en: {
+    close: "Close",
+    cancel: "Cancel",
+    targetElement: "Target: ",
+    targetBox: "Target: selected screen area",
+    targetPage: "Target: current page",
+    recentReview: "Recent marks",
+    recentFeedback: "Recent feedback",
+    copyJson: "Copy mark JSON",
+    copyJsonTitle: "Copy JSON",
+    copied: "Copied",
+    copyFailed: "Copy failed",
+    persistedReview: "Mark saved.",
+    persistedFeedback: "Thank you. Your feedback was sent.",
+    localOnly: "Saved locally. Configure an endpoint to persist submissions.",
+    review: {
+      launcher: "Mark",
+      panelTitle: "Mark this page",
+      tabPrimary: "Comment",
+      tabSecondary: "Ask AI",
+      placeholder: "Enter a review comment",
+      secondaryPlaceholder: "Describe the change you want AI to make",
+      submit: "Save mark",
+      helper: "Click a highlighted element, drag an empty area, or save feedback for the entire page.",
+      empty: "No marks yet."
+    },
+    feedback: {
+      launcher: "Feedback",
+      panelTitle: "Send feedback",
+      tabPrimary: "Feedback",
+      tabSecondary: "Question",
+      placeholder: "Enter feedback about this page",
+      secondaryPlaceholder: "Ask a question about this page",
+      submit: "Send",
+      helper: "Click a highlighted element, drag an empty area, or send feedback for the entire page.",
+      empty: "No feedback in this session yet."
+    }
   }
-}[mode];
+}[locale];
+const labels = messages[mode];
 
 function applyBaseStyles(element) {
   element.style.fontFamily = 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
@@ -159,6 +226,7 @@ function applyBaseStyles(element) {
 function createLauncher() {
   const launcher = document.createElement("button");
   launcher.type = "button";
+  launcher.lang = locale;
   launcher.setAttribute("data-markable-launcher", "");
   launcher.textContent = labels.launcher;
   applyBaseStyles(launcher);
@@ -178,6 +246,7 @@ function createLauncher() {
 
 function createPanel() {
   const panel = document.createElement("form");
+  panel.lang = locale;
   panel.setAttribute("data-markable-panel", "");
   applyBaseStyles(panel);
   panel.style.position = "fixed";
@@ -192,7 +261,7 @@ function createPanel() {
   panel.style.borderRadius = "18px";
   panel.style.boxShadow = "0 24px 70px rgba(15, 23, 42, 0.28)";
   panel.style.width = "min(392px, calc(100vw - 32px))";
-  panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px"><strong data-markable-title data-markable-drag-handle style="font-size:16px;cursor:move;user-select:none">' + labels.panelTitle + '</strong><button type="button" data-markable-close aria-label="Close" style="border:0;background:transparent;font-size:20px;line-height:1;cursor:pointer;color:#6b7280">×</button></div><div data-markable-tabs style="display:grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:999px;background:#f3f4f6;margin-bottom:12px"><button type="button" data-markable-tab="primary" style="border:0;border-radius:999px;padding:8px;background:#fff;color:#111827;box-shadow:0 1px 3px rgba(0,0,0,.08);cursor:pointer">' + labels.tabPrimary + '</button><button type="button" data-markable-tab="secondary" style="border:0;border-radius:999px;padding:8px;background:transparent;color:#6b7280;cursor:pointer">' + labels.tabSecondary + '</button></div><p data-markable-target-summary style="margin:0 0 8px;color:#4b5563;font-size:12px">' + labels.helper + '</p><textarea name="message" required data-markable-input style="box-sizing:border-box;width:100%;min-height:104px;border:1px solid #d1d5db;border-radius:12px;padding:10px;resize:vertical"></textarea><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px"><button type="button" data-markable-cancel style="border:1px solid #d1d5db;background:#fff;border-radius:999px;padding:8px 12px;cursor:pointer">キャンセル</button><button type="submit" data-markable-submit style="border:0;background:#2563eb;color:#fff;border-radius:999px;padding:8px 14px;cursor:pointer">' + labels.submit + '</button></div><p data-markable-status role="status" style="min-height:16px;margin:8px 0 0;color:#4b5563;font-size:12px"></p>' + poweredByFooter;
+  panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px"><strong data-markable-title data-markable-drag-handle style="font-size:16px;cursor:move;user-select:none">' + labels.panelTitle + '</strong><button type="button" data-markable-close aria-label="' + messages.close + '" style="border:0;background:transparent;font-size:20px;line-height:1;cursor:pointer;color:#6b7280">×</button></div><div data-markable-tabs style="display:grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:999px;background:#f3f4f6;margin-bottom:12px"><button type="button" data-markable-tab="primary" style="border:0;border-radius:999px;padding:8px;background:#fff;color:#111827;box-shadow:0 1px 3px rgba(0,0,0,.08);cursor:pointer">' + labels.tabPrimary + '</button><button type="button" data-markable-tab="secondary" style="border:0;border-radius:999px;padding:8px;background:transparent;color:#6b7280;cursor:pointer">' + labels.tabSecondary + '</button></div><p data-markable-target-summary style="margin:0 0 8px;color:#4b5563;font-size:12px">' + labels.helper + '</p><textarea name="message" required data-markable-input style="box-sizing:border-box;width:100%;min-height:104px;border:1px solid #d1d5db;border-radius:12px;padding:10px;resize:vertical"></textarea><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px"><button type="button" data-markable-cancel style="border:1px solid #d1d5db;background:#fff;border-radius:999px;padding:8px 12px;cursor:pointer">' + messages.cancel + '</button><button type="submit" data-markable-submit style="border:0;background:#2563eb;color:#fff;border-radius:999px;padding:8px 14px;cursor:pointer">' + labels.submit + '</button></div><p data-markable-status role="status" style="min-height:16px;margin:8px 0 0;color:#4b5563;font-size:12px"></p>' + poweredByFooter;
   panel.querySelector("[data-markable-input]").placeholder = labels.placeholder;
   return panel;
 }
@@ -213,6 +282,7 @@ function createOverlay(kind) {
 
 function createList() {
   const list = document.createElement("aside");
+  list.lang = locale;
   list.setAttribute("data-markable-list", "");
   applyBaseStyles(list);
   list.style.position = "fixed";
@@ -259,7 +329,7 @@ function elementTarget(element) {
 function bboxTarget(rect) { return { kind: "bbox", locator: { url: location.href }, rect: rectObject(rect) }; }
 function currentPageTarget() { return { kind: "dom_range", locator: { url: location.href } }; }
 function currentTarget() { return selectedTarget || currentPageTarget(); }
-function context() { return { url: location.href, title: document.title, viewport: { width: innerWidth, height: innerHeight }, userAgent: navigator.userAgent, markableTab: activeTab }; }
+function context() { return { url: location.href, title: document.title, viewport: { width: innerWidth, height: innerHeight }, userAgent: navigator.userAgent, markableTab: activeTab, markableLocale: locale }; }
 
 function positionOverlay(targetOverlay, rect) { targetOverlay.style.display = "block"; targetOverlay.style.left = rect.x + "px"; targetOverlay.style.top = rect.y + "px"; targetOverlay.style.width = rect.width + "px"; targetOverlay.style.height = rect.height + "px"; }
 function showOverlayFor(element) { positionOverlay(overlay, element.getBoundingClientRect()); }
@@ -280,7 +350,7 @@ function rectFromPoints(a, b) { const x = Math.min(a.x, b.x); const y = Math.min
 function setTab(tab) {
   activeTab = tab;
   const input = panel.querySelector("[data-markable-input]");
-  input.placeholder = tab === "secondary" ? (mode === "feedback" ? "このページについて質問する" : "AIに依頼したい変更内容を入力") : labels.placeholder;
+  input.placeholder = tab === "secondary" ? labels.secondaryPlaceholder : labels.placeholder;
   panel.querySelectorAll("[data-markable-tab]").forEach(button => {
     const active = button.getAttribute("data-markable-tab") === tab;
     button.style.background = active ? "#fff" : "transparent";
@@ -289,9 +359,9 @@ function setTab(tab) {
   });
 }
 function summarizeTarget(target) {
-  if (target?.kind === "dom_element") { const l = target.locator; return "対象: " + (l.dataMarkableId || l.id || l.ariaLabel || l.selector || l.tag); }
-  if (target?.kind === "bbox") return "対象: 選択した画面範囲";
-  return "対象: 現在のページ";
+  if (target?.kind === "dom_element") { const l = target.locator; return messages.targetElement + (l.dataMarkableId || l.id || l.ariaLabel || l.selector || l.tag); }
+  if (target?.kind === "bbox") return messages.targetBox;
+  return messages.targetPage;
 }
 function updateSelectedTarget(target) {
   selectedTarget = target || null;
@@ -311,7 +381,8 @@ function resetTargeting() { candidateElement = null; selectedElement = null; dra
 function closePanel() { panel.style.display = "none"; launcher.style.display = "block"; resetTargeting(); }
 function renderList() {
   list.style.display = annotations.length ? "block" : "none";
-  list.innerHTML = '<strong data-markable-drag-handle style="display:block;margin-bottom:8px;cursor:move;user-select:none">最近の' + (mode === "feedback" ? "フィードバック" : "マーク") + '</strong>' + (annotations.length ? annotations.slice(-4).reverse().map(item => '<article style="border-top:1px solid #e5e7eb;padding-top:8px;margin-top:8px"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div style="min-width:0"><p style="margin:0 0 4px;color:#111827">' + escapeHtml(item.message).slice(0, 140) + '</p><small style="color:#6b7280">' + item.target.kind + ' · ' + new Date(item.createdAt).toLocaleTimeString() + '</small></div><button type="button" data-markable-copy-json="' + escapeHtml(item.id) + '" aria-label="マークJSONをコピー" title="JSONをコピー" style="flex:0 0 auto;border:1px solid #d1d5db;background:#fff;color:#374151;border-radius:999px;padding:4px 8px;font-size:12px;line-height:1.2;cursor:pointer">JSON</button></div></article>').join('') : '<p style="margin:0;color:#6b7280">' + labels.empty + '</p>');
+  const heading = mode === "feedback" ? messages.recentFeedback : messages.recentReview;
+  list.innerHTML = '<strong data-markable-drag-handle style="display:block;margin-bottom:8px;cursor:move;user-select:none">' + heading + '</strong>' + (annotations.length ? annotations.slice(-4).reverse().map(item => '<article style="border-top:1px solid #e5e7eb;padding-top:8px;margin-top:8px"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div style="min-width:0"><p style="margin:0 0 4px;color:#111827">' + escapeHtml(item.message).slice(0, 140) + '</p><small style="color:#6b7280">' + item.target.kind + ' · ' + new Date(item.createdAt).toLocaleTimeString(locale) + '</small></div><button type="button" data-markable-copy-json="' + escapeHtml(item.id) + '" aria-label="' + messages.copyJson + '" title="' + messages.copyJsonTitle + '" style="flex:0 0 auto;border:1px solid #d1d5db;background:#fff;color:#374151;border-radius:999px;padding:4px 8px;font-size:12px;line-height:1.2;cursor:pointer">JSON</button></div></article>').join('') : '<p style="margin:0;color:#6b7280">' + labels.empty + '</p>');
 }
 function escapeHtml(value) { return String(value).replace(/[&<>"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char])); }
 
@@ -398,9 +469,9 @@ list.addEventListener("click", async event => {
   if (!annotation) return;
   try {
     const copied = await copyText(JSON.stringify(annotation, null, 2));
-    button.textContent = copied ? "コピー済み" : "コピー失敗";
+    button.textContent = copied ? messages.copied : messages.copyFailed;
   } catch {
-    button.textContent = "コピー失敗";
+    button.textContent = messages.copyFailed;
   }
   setTimeout(() => { button.textContent = "JSON"; }, 1200);
 });
@@ -457,10 +528,10 @@ panel.addEventListener("submit", async event => {
   try {
     const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(annotation) });
     if (!response.ok) throw new Error("Request failed with " + response.status);
-    status.textContent = mode === "feedback" ? "ありがとうございます。フィードバックを送信しました。" : "マークを保存しました。";
+    status.textContent = mode === "feedback" ? messages.persistedFeedback : messages.persistedReview;
   } catch (error) {
     console.warn("markable: unable to persist annotation", error, annotation);
-    status.textContent = "ローカルに記録しました。永続化するにはエンドポイントを設定してください。";
+    status.textContent = messages.localOnly;
   }
   annotations.push(annotation);
   panel.reset();
