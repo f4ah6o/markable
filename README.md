@@ -37,6 +37,7 @@ export default defineConfig({
   plugins: [
     markable({
       mode: process.env.NODE_ENV === "production" ? "feedback" : "review",
+      locale: "ja",
       commentsFile: ".markable/comments.json",
       endpoint: "/__markable/comments",
       // 既定の "Powered by Markable" フッターリンクを非表示にするには false にします。
@@ -45,6 +46,17 @@ export default defineConfig({
   ],
 });
 ````
+
+## UI の言語
+
+Markableが注入するUIは、日本語と英語に対応しています。既定値は日本語です。
+
+````ts
+markable({ locale: "ja" }); // 日本語、既定値
+markable({ locale: "en" }); // English
+````
+
+対象となる文言には、フローティングボタン、入力パネル、タブ、プレースホルダー、対象表示、最近の投稿一覧、コピー結果、送信結果が含まれます。選択された言語は、送信する注釈の `context.markableLocale` にも記録されます。
 
 ## Vite+ 互換性
 
@@ -102,6 +114,7 @@ pnpm --filter @f12o/markable-vite-todo-demo dev
 ````ts
 markable({
   mode: "auto",
+  locale: "ja",
   commentsFile: ".markable/comments.json",
   endpoint: "/__markable/comments",
 });
@@ -109,7 +122,7 @@ markable({
 
 Vite開発時には、`mode: "auto"` がreviewモードになります。フローティングの「マーク」ボタンから入力画面を開きます。実用的なページ要素はポインター移動時に自動でハイライトされ、クリックするとそのDOM要素にマークを紐づけます。ページの空白部分をドラッグすると矩形範囲へ、対象を選択せずに保存すると現在のページ全体へマークを紐づけます。開発サーバーのエンドポイントは、構造化された注釈JSONをデモアプリ内の `.markable/comments.json` へ保存します。
 
-本番ビルド時には、`mode: "auto"` がfeedbackモードになります。フローティングの「フィードバック」ボタンから、フィードバックと質問のタブを持つユーザー向けパネルを開きます。要素・矩形範囲の選択と、セッション内の最近の投稿一覧を利用できます。取得するコンテキストには、URL、ページタイトル、ビューポート、ユーザーエージェント、選択中のタブ、任意の選択要素または矩形範囲が含まれます。
+本番ビルド時には、`mode: "auto"` がfeedbackモードになります。フローティングの「フィードバック」ボタンから、フィードバックと質問のタブを持つユーザー向けパネルを開きます。要素・矩形範囲の選択と、セッション内の最近の投稿一覧を利用できます。取得するコンテキストには、URL、ページタイトル、ビューポート、ユーザーエージェント、選択中のタブ、UI言語、任意の選択要素または矩形範囲が含まれます。
 
 ### shadcn-admin サンプル
 
@@ -126,6 +139,7 @@ pnpm --filter @f12o/markable-shadcn-admin-demo build
 ````ts
 markable({
   mode: "auto",
+  locale: "ja",
   commentsFile: ".markable/comments.json",
   endpoint: "/__markable/comments",
 });
