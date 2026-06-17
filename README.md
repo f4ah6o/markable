@@ -6,14 +6,12 @@ Make anything markable.
 
 `markable` is a headless interaction layer for attaching structured feedback, review comments, and rewrite annotations to artifacts without changing the existing app implementation.
 
-It is designed to work in two modes:
+Two modes:
 
-- **dev**: developer-oriented review annotations that can be consumed by agents and rewrite tools.
-- **prod**: user-facing feedback and inquiry capture with URL, selection, viewport, and optional context.
+- dev: developer-oriented review annotations that can be consumed by agents and rewrite tools.
+- prod: user-facing feedback and inquiry capture with URL, selection, viewport, and optional context.
 
-## Package shape
-
-The intended npm entry point is:
+## Install
 
 ```bash
 npm install @f12o/markable
@@ -60,7 +58,7 @@ Localized strings include the floating launcher, composer, tabs, placeholders, t
 
 ## Vite+ compatibility
 
-Vite+ is expected to run normal Vite plugins when it loads a Vite-compatible config. `markable` keeps the integration as a standard Vite plugin instead of exposing a Vite+-specific API.
+Vite+ is expected to run normal Vite plugins when it loads a Vite-compatible config. `markable` is a standard Vite plugin and does not expose a Vite+-specific API.
 
 Initial compatibility target:
 
