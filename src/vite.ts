@@ -19,7 +19,7 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
   const commentsFile = options.commentsFile ?? ".markable/comments.json";
   const inject = options.inject ?? true;
   const poweredBy = options.poweredBy ?? true;
-  const locale = options.locale ?? "ja";
+  const locale = options.locale ?? "en";
   let root = process.cwd();
   let resolvedMode: MarkableMode = "review";
 

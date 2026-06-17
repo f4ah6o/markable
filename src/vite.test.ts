@@ -23,19 +23,19 @@ describe("markable Vite plugin", () => {
     expect(source).not.toContain("data-markable-powered-by");
   });
 
-  it("uses Japanese as the default UI locale", () => {
+  it("uses English as the default UI locale", () => {
     const source = injectedSource();
-
-    expect(source).toContain('const locale = \\"ja\\";');
-    expect(source).toContain("このページをマーク");
-    expect(source).toContain("markableLocale: locale");
-  });
-
-  it("supports an English UI locale", () => {
-    const source = injectedSource({ locale: "en" });
 
     expect(source).toContain('const locale = \\"en\\";');
     expect(source).toContain("Mark this page");
-    expect(source).toContain("Saved locally. Configure an endpoint to persist submissions.");
+    expect(source).toContain("markableLocale: locale");
+  });
+
+  it("supports a Japanese UI locale", () => {
+    const source = injectedSource({ locale: "ja" });
+
+    expect(source).toContain('const locale = \\"ja\\";');
+    expect(source).toContain("このページをマーク");
+    expect(source).toContain("ローカルに記録しました。永続化するにはエンドポイントを設定してください。");
   });
 });

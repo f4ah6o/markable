@@ -1,35 +1,35 @@
 # markable
 
-[English](README.en.md)
+[日本語版](README.ja.md)
 
-あらゆるものをマーク可能にします。
+Make anything markable.
 
-`markable` は、既存アプリの実装を変更せずに、構造化されたフィードバック、レビューコメント、書き換え指示を成果物へ紐づけるためのヘッドレスなインタラクションレイヤーです。
+`markable` is a headless interaction layer for attaching structured feedback, review comments, and rewrite annotations to artifacts without changing the existing app implementation.
 
-次の2つのモードで動作します。
+It is designed to work in two modes:
 
-- **dev / review**: 開発者向けのレビュー注釈を保存し、エージェントやリライトツールが利用できる構造化データとして扱います。
-- **prod / feedback**: ユーザー向けのフィードバックや問い合わせを、URL・選択範囲・ビューポート・任意コンテキストと一緒に収集します。
+- **dev**: developer-oriented review annotations that can be consumed by agents and rewrite tools.
+- **prod**: user-facing feedback and inquiry capture with URL, selection, viewport, and optional context.
 
-## パッケージ構成
+## Package shape
 
-npm のメインパッケージは次のとおりです。
+The intended npm entry point is:
 
-````bash
+```bash
 npm install @f12o/markable
-````
+```
 
-連携機能はサブパスエクスポートとして提供します。
+Subpath exports are used for integrations:
 
-````ts
+```ts
 import { createMarkable } from "@f12o/markable/core";
 import { createDomAdapter } from "@f12o/markable/dom";
 import { markable } from "@f12o/markable/vite";
-````
+```
 
-## Vite での使い方
+## Vite usage
 
-````ts
+```ts
 import { defineConfig } from "vite";
 import { markable } from "@f12o/markable/vite";
 
@@ -37,140 +37,138 @@ export default defineConfig({
   plugins: [
     markable({
       mode: process.env.NODE_ENV === "production" ? "feedback" : "review",
-      locale: "ja",
+      locale: "en",
       commentsFile: ".markable/comments.json",
       endpoint: "/__markable/comments",
-      // 既定の "Powered by Markable" フッターリンクを非表示にするには false にします。
+      // Set to false to hide the default "Powered by Markable" footer link.
       poweredBy: true,
     }),
   ],
 });
-````
+```
 
-## UI の言語
+## UI locale
 
-Markableが注入するUIは、日本語と英語に対応しています。既定値は日本語です。
+The UI injected by Markable supports English and Japanese. English is the default locale.
 
-````ts
-markable({ locale: "ja" }); // 日本語、既定値
-markable({ locale: "en" }); // English
-````
+```ts
+markable({ locale: "en" }); // English, default
+markable({ locale: "ja" }); // Japanese
+```
 
-対象となる文言には、フローティングボタン、入力パネル、タブ、プレースホルダー、対象表示、最近の投稿一覧、コピー結果、送信結果が含まれます。選択された言語は、送信する注釈の `context.markableLocale` にも記録されます。
+Localized strings include the floating launcher, composer, tabs, placeholders, target summaries, recent submission list, copy results, and submission status. The selected locale is also recorded as `context.markableLocale` in submitted annotations.
 
-## Vite+ 互換性
+## Vite+ compatibility
 
-Vite+ は、Vite互換の設定を読み込む場合に通常のViteプラグインを実行できます。`markable` はVite+専用APIを追加せず、標準のViteプラグインとして連携します。
+Vite+ is expected to run normal Vite plugins when it loads a Vite-compatible config. `markable` keeps the integration as a standard Vite plugin instead of exposing a Vite+-specific API.
 
-初期互換対象:
+Initial compatibility target:
 
-````bash
+```bash
 vp dev
 vp build
-````
+```
 
-現在、次の標準Viteフックを使用しています。
+The plugin currently uses standard Vite hooks:
 
-````text
+```text
 transformIndexHtml
 configureServer
 resolveId
 load
-````
+```
 
-## 基本構想
+## Core idea
 
-````text
-成果物
-  -> 対象をマーク
-  -> 注釈 / コメント / フィードバック
-  -> 構造化イベント
-  -> チケット / JSON / エージェント入力
-  -> 書き換え / 解決 / フォローアップ
-````
+```text
+artifact
+  -> mark target
+  -> annotate / comment / feedback
+  -> structured event
+  -> ticket / JSON / agent input
+  -> rewrite / resolve / follow-up
+```
 
-`markable` はアプリのUIを所有しません。コアはヘッドレスであり、DOM連携とVite連携は取得・注入のみを担当します。
+`markable` does not own your UI. The core is headless. DOM and Vite integrations provide capture and injection only.
 
-## 現在の状態
+## Current status
 
-初期スキャフォールドです。
+Initial scaffold.
 
-## 参考実装
+## Inspiration
 
-本番向けフィードバック選択UIは、[`u-ichi/reviewable-html-workbench`](https://github.com/u-ichi/reviewable-html-workbench) の明確なレビュー状態、コンテキストに応じたハイライト、対象位置に紐づくコメント表示を参考にしています。`markable` は、この操作パターンを本番Webアプリのフィードバックへ一般化しつつ、コアパッケージをヘッドレスに保ちます。
+The production feedback selection UX is inspired by [`u-ichi/reviewable-html-workbench`](https://github.com/u-ichi/reviewable-html-workbench), particularly its clear review state, contextual highlighting, and visually anchored comments. `markable` generalizes that interaction pattern for production web app feedback while keeping the core package headless.
 
-## デモアプリ
+## Demo app
 
-軽量なVue 3 + Vite Todoデモは `examples/vite-todo` にあります。markable連携を確認しやすいよう、意図的に小さく構成しています。
+A lightweight Vue 3 + Vite Todo demo lives in `examples/vite-todo`. It is intentionally small so the markable integration is easy to inspect:
 
-````bash
+```bash
 pnpm install
 pnpm build
 pnpm --filter @f12o/markable-vite-todo-demo dev
-````
+```
 
-デモ設定では、パッケージのViteプラグインを直接使用します。
+The demo config uses the package Vite plugin directly:
 
-````ts
+```ts
 markable({
   mode: "auto",
-  locale: "ja",
   commentsFile: ".markable/comments.json",
   endpoint: "/__markable/comments",
 });
-````
+```
 
-Vite開発時には、`mode: "auto"` がreviewモードになります。フローティングの「マーク」ボタンから入力画面を開きます。実用的なページ要素はポインター移動時に自動でハイライトされ、クリックするとそのDOM要素にマークを紐づけます。ページの空白部分をドラッグすると矩形範囲へ、対象を選択せずに保存すると現在のページ全体へマークを紐づけます。開発サーバーのエンドポイントは、構造化された注釈JSONをデモアプリ内の `.markable/comments.json` へ保存します。
+In Vite development mode, `mode: "auto"` resolves to review mode. Use the floating Mark button to open a composer. Practical page elements highlight automatically as you move over them; click a highlighted element to attach the mark to that DOM element, drag an empty page area to attach it to a rectangular screen region, or save without choosing a target to attach it to the current page. The dev server endpoint writes structured annotation JSON to `.markable/comments.json` inside the demo app.
 
-本番ビルド時には、`mode: "auto"` がfeedbackモードになります。フローティングの「フィードバック」ボタンから、フィードバックと質問のタブを持つユーザー向けパネルを開きます。要素・矩形範囲の選択と、セッション内の最近の投稿一覧を利用できます。取得するコンテキストには、URL、ページタイトル、ビューポート、ユーザーエージェント、選択中のタブ、UI言語、任意の選択要素または矩形範囲が含まれます。
+In production builds, `mode: "auto"` resolves to feedback mode. The floating Feedback button opens a user-facing feedback panel with Feedback and Question tabs, the same automatic element and box targeting behavior, and an in-session list of recent submissions. Captured context includes URL, title, viewport, user agent, the active tab intent, UI locale, and the optional selected element or rectangle.
 
-### shadcn-admin サンプル
+### shadcn-admin example
 
-より大きなReactダッシュボードのサンプルは `examples/shadcn-admin` にあります。[`satnaing/shadcn-admin`](https://github.com/satnaing/shadcn-admin) のコミット `e16c87f213a5ba5e45964e9b67c792105ec74d26` を取り込み、現実的なshadcn UI上でオーバーレイを確認できるようmarkable Viteプラグインを追加しています。
+A larger React dashboard example lives in `examples/shadcn-admin`. It vendors [`satnaing/shadcn-admin`](https://github.com/satnaing/shadcn-admin) at commit `e16c87f213a5ba5e45964e9b67c792105ec74d26` and adds the markable Vite plugin so the overlay can be exercised against a realistic shadcn UI:
 
-````bash
+```bash
 pnpm install
 pnpm --filter @f12o/markable-shadcn-admin-demo dev
 pnpm --filter @f12o/markable-shadcn-admin-demo build
-````
+```
 
-このサンプルでもTodoデモと同じローカル開発エンドポイントを使用します。
+The example config uses the same local development endpoint as the Todo demo:
 
-````ts
+```ts
 markable({
   mode: "auto",
-  locale: "ja",
   commentsFile: ".markable/comments.json",
   endpoint: "/__markable/comments",
 });
-````
+```
 
-ローカル開発時に送信されたマークは、`examples/shadcn-admin/.markable/comments.json` に保存されます。
+In local development, submitted marks are persisted to `examples/shadcn-admin/.markable/comments.json`.
 
-### GitHub Pages へのデプロイ
+### GitHub Pages deployment
 
-`Deploy demo to GitHub Pages` ワークフローは、パッケージと各サンプルをビルドし、サンプル一覧を生成して、次のGitHub Pagesへ静的ファイルを公開します。
+The `Deploy demo to GitHub Pages` workflow builds the package, builds the examples, generates an example index, and publishes the static output to GitHub Pages at:
 
-````text
+```text
 https://f4ah6o.github.io/markable/
 https://f4ah6o.github.io/markable/vue-todo/
 https://f4ah6o.github.io/markable/shadcn-admin/
-````
+```
 
-一覧ページは `examples/examples.json` を基に `scripts/build-pages-index.mjs` が生成します。新しいサンプルはマニフェストを更新すると一覧へ追加できます。
+The index page is generated from `examples/examples.json` by `scripts/build-pages-index.mjs`, so new examples can be added to the listing by updating the manifest.
 
-GitHub Pagesは静的ホスティングのため、サンプルアプリと注入されたフィードバックUIは表示できますが、`/.markable` や `/.json` ファイルへのPOSTを永続化できません。公開静的環境では、外部エンドポイントを設定しない限り、送信したフィードバックはローカルまたはセッション内だけで扱われます。
+GitHub Pages is static hosting, so it can demonstrate the example apps and injected feedback overlay but cannot persist POSTed feedback to `/.markable` or `/.json` files. For public static deployments, treat submitted feedback as local/session-only unless a remote endpoint is configured.
 
-### Cloudflare Workers による永続化
+### Cloudflare Workers follow-up
 
-本番フィードバックを永続化する場合は、markableのエンドポイントを `/api/feedback` などのWorkerルートへ向けます。
+For persistent production feedback, point the markable endpoint at a Worker route such as `/api/feedback`:
 
-````text
-ブラウザー
+```text
+browser
   -> markable feedback UI
   -> /api/feedback
   -> Cloudflare Worker
-  -> D1, KV, R2, GitHub Issues, queue, webhook
-````
+  -> D1, KV, R2, GitHub Issues, a queue, or a webhook
+```
 
-この構成により、GitHub Pagesの静的デモを軽量に保ちながら、Worker側で保存、通知、Issue作成などを追加できます。
+That follow-up can keep the static GitHub Pages demo lightweight while adding real storage, notification, or issue creation behind a Worker-backed endpoint.
