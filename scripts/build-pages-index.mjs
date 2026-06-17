@@ -181,6 +181,9 @@ function renderCard(example) {
   const commit = example.sourceCommit
     ? `        <p class="meta">Pinned source commit: <code>${escapeHtml(example.sourceCommit.slice(0, 12))}</code></p>`
     : "";
+  const license = example.sourceLicense
+    ? `        <p class="meta">Source license: <a href="${escapeAttribute(example.sourceLicense.url)}">${escapeHtml(example.sourceLicense.name)}</a></p>`
+    : "";
 
   return `        <article>
           <h2>${escapeHtml(example.title)}</h2>
@@ -194,6 +197,7 @@ ${sourceLink}
 ${inspirationLink}
           </div>
 ${commit}
+${license}
         </article>`;
 }
 
