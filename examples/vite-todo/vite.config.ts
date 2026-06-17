@@ -3,7 +3,7 @@ import vue from "@vitejs/plugin-vue";
 import { markable } from "@f12o/markable/vite";
 
 export default defineConfig({
-  base: process.env.GITHUB_ACTIONS ? "/markable/" : "/",
+  base: process.env.GITHUB_ACTIONS ? "/markable/vue-todo/" : "/",
   plugins: [
     vue(),
     markable({

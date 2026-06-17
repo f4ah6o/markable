@@ -33,12 +33,22 @@ jobs:
         run: pnpm build
       - name: Build Todo demo
         run: pnpm --filter @f12o/markable-vite-todo-demo build
+      - name: Build shadcn-admin demo
+        run: pnpm --filter @f12o/markable-shadcn-admin-demo build
+      - name: Prepare Pages artifact
+        shell: bash
+        run: |
+          rm -rf pages-dist
+          mkdir -p pages-dist/vue-todo pages-dist/shadcn-admin
+          cp -R examples/vite-todo/dist/. pages-dist/vue-todo/
+          cp -R examples/shadcn-admin/dist/. pages-dist/shadcn-admin/
+          node scripts/build-pages-index.mjs
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: examples/vite-todo/dist
+          path: pages-dist
   deploy:
     environment:
       name: github-pages
