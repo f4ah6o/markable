@@ -37,6 +37,7 @@ export default defineConfig({
   plugins: [
     markable({
       mode: process.env.NODE_ENV === "production" ? "feedback" : "review",
+      locale: "en",
       commentsFile: ".markable/comments.json",
       endpoint: "/__markable/comments",
       // Set to false to hide the default "Powered by Markable" footer link.
@@ -45,6 +46,17 @@ export default defineConfig({
   ],
 });
 ```
+
+## UI locale
+
+The UI injected by Markable supports English and Japanese. English is the default locale.
+
+```ts
+markable({ locale: "en" }); // English, default
+markable({ locale: "ja" }); // Japanese
+```
+
+Localized strings include the floating launcher, composer, tabs, placeholders, target summaries, recent submission list, copy results, and submission status. The selected locale is also recorded as `context.markableLocale` in submitted annotations.
 
 ## Vite+ compatibility
 
@@ -109,7 +121,7 @@ markable({
 
 In Vite development mode, `mode: "auto"` resolves to review mode. Use the floating Mark button to open a composer. Practical page elements highlight automatically as you move over them; click a highlighted element to attach the mark to that DOM element, drag an empty page area to attach it to a rectangular screen region, or save without choosing a target to attach it to the current page. The dev server endpoint writes structured annotation JSON to `.markable/comments.json` inside the demo app.
 
-In production builds, `mode: "auto"` resolves to feedback mode. The floating Feedback button opens a user-facing feedback panel with Feedback and Question tabs, the same automatic element and box targeting behavior, and an in-session list of recent submissions. Captured context includes URL, title, viewport, user agent, the active tab intent, and the optional selected element or rectangle.
+In production builds, `mode: "auto"` resolves to feedback mode. The floating Feedback button opens a user-facing feedback panel with Feedback and Question tabs, the same automatic element and box targeting behavior, and an in-session list of recent submissions. Captured context includes URL, title, viewport, user agent, the active tab intent, UI locale, and the optional selected element or rectangle.
 
 ### shadcn-admin example
 
