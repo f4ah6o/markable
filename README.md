@@ -1,5 +1,7 @@
 # markable
 
+[日本語版](README.ja.md)
+
 Make anything markable.
 
 `markable` is a headless interaction layer for attaching structured feedback, review comments, and rewrite annotations to artifacts without changing the existing app implementation.
