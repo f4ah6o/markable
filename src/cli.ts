@@ -7,7 +7,7 @@ import {
   attachMarkable,
   detachMarkable,
   hasMarkable,
-  type EditRecord,
+  TreeSitterUnavailableError,
 } from "./cli/edit-vite-config";
 import {
   ensureDevDependency,
@@ -48,6 +48,13 @@ const cli: Cli = {
   log: (message = "") => process.stdout.write(`${message}\n`),
   error: (message = "") => process.stderr.write(`${message}\n`),
 };
+
+// Exit quietly when output is piped into a closed reader (e.g. `markable doctor | head`).
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on("error", (error: NodeJS.ErrnoException) => {
+    if (error.code === "EPIPE") process.exit(0);
+  });
+}
 
 async function main(argv: string[]): Promise<number> {
   const args = argv.slice(2);
@@ -140,6 +147,12 @@ function hashOf(content: string): string {
   return createHash("sha256").update(content).digest("hex");
 }
 
+/** Keep a missing-Tree-sitter error as a value; rethrow anything unexpected. */
+function toEditError(error: unknown): TreeSitterUnavailableError {
+  if (error instanceof TreeSitterUnavailableError) return error;
+  throw error;
+}
+
 /** Atomic write: stage to a sibling temp file, then rename into place. */
 async function writeFileAtomic(file: string, content: string): Promise<void> {
   const tmp = `${file}.markable-${process.pid}.tmp`;
@@ -198,8 +211,13 @@ async function runInit(root: string): Promise<number> {
   } else {
     const vitePath = path.join(root, viteConfig);
     const before = await fs.readFile(vitePath, "utf8");
-    const result = await attachMarkable(before);
-    if (result.status === "already") {
+    const result = await attachMarkable(before).catch(toEditError);
+    if (result instanceof Error) {
+      viteHandled = false;
+      cli.error(`${result.message}\n\nMeanwhile, add the plugin manually:\n`);
+      cli.error(manualSnippet());
+      cli.error("");
+    } else if (result.status === "already") {
       summary.push(`${viteConfig} already wires up markable()`);
     } else if (result.status === "changed") {
       await writeFileAtomic(vitePath, result.code);
@@ -273,8 +291,8 @@ async function runDoctor(root: string): Promise<number> {
   let wired = false;
   if (viteConfig) {
     const source = await fs.readFile(path.join(root, viteConfig), "utf8");
-    const presence = await hasMarkable(source);
-    wired = presence.import && presence.plugin;
+    const presence = await hasMarkable(source).catch(toEditError);
+    if (!(presence instanceof Error)) wired = presence.import && presence.plugin;
   }
 
   const markableConfig = await detectMarkableConfig(root);

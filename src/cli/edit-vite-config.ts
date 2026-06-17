@@ -56,17 +56,35 @@ interface Engine {
 
 let enginePromise: Promise<Engine> | null = null;
 
+/** Raised when the optional Tree-sitter dependencies are not installed. */
+export class TreeSitterUnavailableError extends Error {
+  constructor(cause: unknown) {
+    super(
+      "Markable's optional Tree-sitter dependencies are missing. Install them " +
+        "with `npm install -D web-tree-sitter tree-sitter-wasms` (they are part of " +
+        "@f12o/markable's optionalDependencies) and re-run.",
+    );
+    this.name = "TreeSitterUnavailableError";
+    this.cause = cause;
+  }
+}
+
 async function getEngine(): Promise<Engine> {
   if (!enginePromise) {
     enginePromise = (async () => {
       const require = createRequire(import.meta.url);
-      await Parser.init();
-      const language = await Parser.Language.load(
-        require.resolve("tree-sitter-wasms/out/tree-sitter-typescript.wasm"),
-      );
-      const parser = new Parser();
-      parser.setLanguage(language);
-      return { parser, language };
+      try {
+        await Parser.init();
+        const language = await Parser.Language.load(
+          require.resolve("tree-sitter-wasms/out/tree-sitter-typescript.wasm"),
+        );
+        const parser = new Parser();
+        parser.setLanguage(language);
+        return { parser, language };
+      } catch (error) {
+        enginePromise = null;
+        throw new TreeSitterUnavailableError(error);
+      }
     })();
   }
   return enginePromise;
