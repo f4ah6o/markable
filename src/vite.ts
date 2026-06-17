@@ -8,12 +8,14 @@ export interface MarkableViteOptions {
   commentsFile?: string;
   endpoint?: string;
   inject?: boolean;
+  poweredBy?: boolean;
 }
 
 export function markable(options: MarkableViteOptions = {}): Plugin {
   const endpoint = options.endpoint ?? "/__markable/comments";
   const commentsFile = options.commentsFile ?? ".markable/comments.json";
   const inject = options.inject ?? true;
+  const poweredBy = options.poweredBy ?? true;
   let root = process.cwd();
   let resolvedMode: MarkableMode = "review";
 
@@ -33,7 +35,7 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
           attrs: {
             type: "module",
           },
-          children: clientSource(endpoint, resolvedMode),
+          children: clientSource(endpoint, resolvedMode, poweredBy),
           injectTo: "body",
         },
       ];
@@ -71,7 +73,7 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
 
     load(id) {
       if (id !== "/@markable/client") return null;
-      return clientSource(endpoint, resolvedMode);
+      return clientSource(endpoint, resolvedMode, poweredBy);
     },
   };
 }
@@ -113,10 +115,11 @@ function sendJson(
   res.end(JSON.stringify(value));
 }
 
-function clientSource(endpoint: string, mode: MarkableMode): string {
+function clientSource(endpoint: string, mode: MarkableMode, poweredBy: boolean): string {
   return `
 const endpoint = ${JSON.stringify(endpoint)};
 const mode = ${JSON.stringify(mode)};
+const poweredByFooter = ${JSON.stringify(poweredBy ? '<footer data-markable-powered-by style="margin-top:10px;padding-top:10px;border-top:1px solid #e5e7eb;text-align:right;color:#6b7280;font-size:11px">Powered by <a href="https://github.com/f4ah6o/markable/" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none">Markable</a></footer>' : "")};
 let candidateElement = null;
 let selectedElement = null;
 let selectedTarget = null;
@@ -189,7 +192,7 @@ function createPanel() {
   panel.style.borderRadius = "18px";
   panel.style.boxShadow = "0 24px 70px rgba(15, 23, 42, 0.28)";
   panel.style.width = "min(392px, calc(100vw - 32px))";
-  panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px"><strong data-markable-title data-markable-drag-handle style="font-size:16px;cursor:move;user-select:none">' + labels.panelTitle + '</strong><button type="button" data-markable-close aria-label="Close" style="border:0;background:transparent;font-size:20px;line-height:1;cursor:pointer;color:#6b7280">×</button></div><div data-markable-tabs style="display:grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:999px;background:#f3f4f6;margin-bottom:12px"><button type="button" data-markable-tab="primary" style="border:0;border-radius:999px;padding:8px;background:#fff;color:#111827;box-shadow:0 1px 3px rgba(0,0,0,.08);cursor:pointer">' + labels.tabPrimary + '</button><button type="button" data-markable-tab="secondary" style="border:0;border-radius:999px;padding:8px;background:transparent;color:#6b7280;cursor:pointer">' + labels.tabSecondary + '</button></div><p data-markable-target-summary style="margin:0 0 8px;color:#4b5563;font-size:12px">' + labels.helper + '</p><textarea name="message" required data-markable-input style="box-sizing:border-box;width:100%;min-height:104px;border:1px solid #d1d5db;border-radius:12px;padding:10px;resize:vertical"></textarea><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px"><button type="button" data-markable-cancel style="border:1px solid #d1d5db;background:#fff;border-radius:999px;padding:8px 12px;cursor:pointer">キャンセル</button><button type="submit" data-markable-submit style="border:0;background:#2563eb;color:#fff;border-radius:999px;padding:8px 14px;cursor:pointer">' + labels.submit + '</button></div><p data-markable-status role="status" style="min-height:16px;margin:8px 0 0;color:#4b5563;font-size:12px"></p>';
+  panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px"><strong data-markable-title data-markable-drag-handle style="font-size:16px;cursor:move;user-select:none">' + labels.panelTitle + '</strong><button type="button" data-markable-close aria-label="Close" style="border:0;background:transparent;font-size:20px;line-height:1;cursor:pointer;color:#6b7280">×</button></div><div data-markable-tabs style="display:grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:999px;background:#f3f4f6;margin-bottom:12px"><button type="button" data-markable-tab="primary" style="border:0;border-radius:999px;padding:8px;background:#fff;color:#111827;box-shadow:0 1px 3px rgba(0,0,0,.08);cursor:pointer">' + labels.tabPrimary + '</button><button type="button" data-markable-tab="secondary" style="border:0;border-radius:999px;padding:8px;background:transparent;color:#6b7280;cursor:pointer">' + labels.tabSecondary + '</button></div><p data-markable-target-summary style="margin:0 0 8px;color:#4b5563;font-size:12px">' + labels.helper + '</p><textarea name="message" required data-markable-input style="box-sizing:border-box;width:100%;min-height:104px;border:1px solid #d1d5db;border-radius:12px;padding:10px;resize:vertical"></textarea><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px"><button type="button" data-markable-cancel style="border:1px solid #d1d5db;background:#fff;border-radius:999px;padding:8px 12px;cursor:pointer">キャンセル</button><button type="submit" data-markable-submit style="border:0;background:#2563eb;color:#fff;border-radius:999px;padding:8px 14px;cursor:pointer">' + labels.submit + '</button></div><p data-markable-status role="status" style="min-height:16px;margin:8px 0 0;color:#4b5563;font-size:12px"></p>' + poweredByFooter;
   panel.querySelector("[data-markable-input]").placeholder = labels.placeholder;
   return panel;
 }

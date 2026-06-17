@@ -35,6 +35,8 @@ export default defineConfig({
       mode: "auto",
       commentsFile: ".markable/comments.json",
       endpoint: "/__markable/comments",
+      // 既定の "Powered by Markable" フッターリンクを非表示にするには false にします。
+      poweredBy: true,
     }),
   ],
 });

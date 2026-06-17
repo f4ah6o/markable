@@ -39,6 +39,8 @@ export default defineConfig({
       mode: process.env.NODE_ENV === "production" ? "feedback" : "review",
       commentsFile: ".markable/comments.json",
       endpoint: "/__markable/comments",
+      // Set to false to hide the default "Powered by Markable" footer link.
+      poweredBy: true,
     }),
   ],
 });
