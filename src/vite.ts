@@ -127,24 +127,24 @@ const annotations = [];
 
 const labels = {
   review: {
-    launcher: "Mark",
-    panelTitle: "Mark this page",
-    tabPrimary: "Comment",
-    tabSecondary: "Ask AI",
-    placeholder: "Leave a review comment",
-    submit: "Save mark",
-    helper: "Click a highlighted element, drag an empty area, or save general page feedback.",
-    empty: "No marks yet."
+    launcher: "マーク",
+    panelTitle: "このページをマーク",
+    tabPrimary: "コメント",
+    tabSecondary: "AIに依頼",
+    placeholder: "レビューコメントを入力",
+    submit: "マークを保存",
+    helper: "ハイライトされた要素をクリック、空白をドラッグ、またはページ全体のフィードバックを保存できます。",
+    empty: "まだマークはありません。"
   },
   feedback: {
-    launcher: "Feedback",
-    panelTitle: "Send feedback",
-    tabPrimary: "Feedback",
-    tabSecondary: "Question",
-    placeholder: "Share feedback about this page",
-    submit: "Send feedback",
-    helper: "Click a highlighted element, drag an empty area, or send general page feedback.",
-    empty: "No feedback submitted in this session."
+    launcher: "フィードバック",
+    panelTitle: "フィードバックを送信",
+    tabPrimary: "フィードバック",
+    tabSecondary: "質問",
+    placeholder: "このページへのフィードバックを入力",
+    submit: "送信",
+    helper: "ハイライトされた要素をクリック、空白をドラッグ、またはページ全体のフィードバックを送信できます。",
+    empty: "このセッションではまだフィードバックがありません。"
   }
 }[mode];
 
@@ -189,7 +189,7 @@ function createPanel() {
   panel.style.borderRadius = "18px";
   panel.style.boxShadow = "0 24px 70px rgba(15, 23, 42, 0.28)";
   panel.style.width = "min(392px, calc(100vw - 32px))";
-  panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px"><strong data-markable-title style="font-size:16px">' + labels.panelTitle + '</strong><button type="button" data-markable-close aria-label="Close" style="border:0;background:transparent;font-size:20px;line-height:1;cursor:pointer;color:#6b7280">×</button></div><div data-markable-tabs style="display:grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:999px;background:#f3f4f6;margin-bottom:12px"><button type="button" data-markable-tab="primary" style="border:0;border-radius:999px;padding:8px;background:#fff;color:#111827;box-shadow:0 1px 3px rgba(0,0,0,.08);cursor:pointer">' + labels.tabPrimary + '</button><button type="button" data-markable-tab="secondary" style="border:0;border-radius:999px;padding:8px;background:transparent;color:#6b7280;cursor:pointer">' + labels.tabSecondary + '</button></div><p data-markable-target-summary style="margin:0 0 8px;color:#4b5563;font-size:12px">' + labels.helper + '</p><textarea name="message" required data-markable-input style="box-sizing:border-box;width:100%;min-height:104px;border:1px solid #d1d5db;border-radius:12px;padding:10px;resize:vertical"></textarea><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px"><button type="button" data-markable-cancel style="border:1px solid #d1d5db;background:#fff;border-radius:999px;padding:8px 12px;cursor:pointer">Cancel</button><button type="submit" data-markable-submit style="border:0;background:#2563eb;color:#fff;border-radius:999px;padding:8px 14px;cursor:pointer">' + labels.submit + '</button></div><p data-markable-status role="status" style="min-height:16px;margin:8px 0 0;color:#4b5563;font-size:12px"></p>';
+  panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px"><strong data-markable-title data-markable-drag-handle style="font-size:16px;cursor:move;user-select:none">' + labels.panelTitle + '</strong><button type="button" data-markable-close aria-label="Close" style="border:0;background:transparent;font-size:20px;line-height:1;cursor:pointer;color:#6b7280">×</button></div><div data-markable-tabs style="display:grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:999px;background:#f3f4f6;margin-bottom:12px"><button type="button" data-markable-tab="primary" style="border:0;border-radius:999px;padding:8px;background:#fff;color:#111827;box-shadow:0 1px 3px rgba(0,0,0,.08);cursor:pointer">' + labels.tabPrimary + '</button><button type="button" data-markable-tab="secondary" style="border:0;border-radius:999px;padding:8px;background:transparent;color:#6b7280;cursor:pointer">' + labels.tabSecondary + '</button></div><p data-markable-target-summary style="margin:0 0 8px;color:#4b5563;font-size:12px">' + labels.helper + '</p><textarea name="message" required data-markable-input style="box-sizing:border-box;width:100%;min-height:104px;border:1px solid #d1d5db;border-radius:12px;padding:10px;resize:vertical"></textarea><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px"><button type="button" data-markable-cancel style="border:1px solid #d1d5db;background:#fff;border-radius:999px;padding:8px 12px;cursor:pointer">キャンセル</button><button type="submit" data-markable-submit style="border:0;background:#2563eb;color:#fff;border-radius:999px;padding:8px 14px;cursor:pointer">' + labels.submit + '</button></div><p data-markable-status role="status" style="min-height:16px;margin:8px 0 0;color:#4b5563;font-size:12px"></p>';
   panel.querySelector("[data-markable-input]").placeholder = labels.placeholder;
   return panel;
 }
@@ -277,7 +277,7 @@ function rectFromPoints(a, b) { const x = Math.min(a.x, b.x); const y = Math.min
 function setTab(tab) {
   activeTab = tab;
   const input = panel.querySelector("[data-markable-input]");
-  input.placeholder = tab === "secondary" ? (mode === "feedback" ? "Ask a question about this page" : "Describe the AI change you want") : labels.placeholder;
+  input.placeholder = tab === "secondary" ? (mode === "feedback" ? "このページについて質問する" : "AIに依頼したい変更内容を入力") : labels.placeholder;
   panel.querySelectorAll("[data-markable-tab]").forEach(button => {
     const active = button.getAttribute("data-markable-tab") === tab;
     button.style.background = active ? "#fff" : "transparent";
@@ -286,9 +286,9 @@ function setTab(tab) {
   });
 }
 function summarizeTarget(target) {
-  if (target?.kind === "dom_element") { const l = target.locator; return "Target: " + (l.dataMarkableId || l.id || l.ariaLabel || l.selector || l.tag); }
-  if (target?.kind === "bbox") return "Target: selected screen area";
-  return "Target: current page";
+  if (target?.kind === "dom_element") { const l = target.locator; return "対象: " + (l.dataMarkableId || l.id || l.ariaLabel || l.selector || l.tag); }
+  if (target?.kind === "bbox") return "対象: 選択した画面範囲";
+  return "対象: 現在のページ";
 }
 function updateSelectedTarget(target) {
   selectedTarget = target || null;
@@ -308,9 +308,48 @@ function resetTargeting() { candidateElement = null; selectedElement = null; dra
 function closePanel() { panel.style.display = "none"; launcher.style.display = "block"; resetTargeting(); }
 function renderList() {
   list.style.display = annotations.length ? "block" : "none";
-  list.innerHTML = '<strong style="display:block;margin-bottom:8px">Recent ' + (mode === "feedback" ? "feedback" : "marks") + '</strong>' + (annotations.length ? annotations.slice(-4).reverse().map(item => '<article style="border-top:1px solid #e5e7eb;padding-top:8px;margin-top:8px"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div style="min-width:0"><p style="margin:0 0 4px;color:#111827">' + escapeHtml(item.message).slice(0, 140) + '</p><small style="color:#6b7280">' + item.target.kind + ' · ' + new Date(item.createdAt).toLocaleTimeString() + '</small></div><button type="button" data-markable-copy-json="' + escapeHtml(item.id) + '" aria-label="Copy mark JSON" title="Copy JSON" style="flex:0 0 auto;border:1px solid #d1d5db;background:#fff;color:#374151;border-radius:999px;padding:4px 8px;font-size:12px;line-height:1.2;cursor:pointer">JSON</button></div></article>').join('') : '<p style="margin:0;color:#6b7280">' + labels.empty + '</p>');
+  list.innerHTML = '<strong data-markable-drag-handle style="display:block;margin-bottom:8px;cursor:move;user-select:none">最近の' + (mode === "feedback" ? "フィードバック" : "マーク") + '</strong>' + (annotations.length ? annotations.slice(-4).reverse().map(item => '<article style="border-top:1px solid #e5e7eb;padding-top:8px;margin-top:8px"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div style="min-width:0"><p style="margin:0 0 4px;color:#111827">' + escapeHtml(item.message).slice(0, 140) + '</p><small style="color:#6b7280">' + item.target.kind + ' · ' + new Date(item.createdAt).toLocaleTimeString() + '</small></div><button type="button" data-markable-copy-json="' + escapeHtml(item.id) + '" aria-label="マークJSONをコピー" title="JSONをコピー" style="flex:0 0 auto;border:1px solid #d1d5db;background:#fff;color:#374151;border-radius:999px;padding:4px 8px;font-size:12px;line-height:1.2;cursor:pointer">JSON</button></div></article>').join('') : '<p style="margin:0;color:#6b7280">' + labels.empty + '</p>');
 }
 function escapeHtml(value) { return String(value).replace(/[&<>"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char])); }
+
+function makeDraggable(element, options = {}) {
+  let drag = null;
+  const handleSelector = options.handleSelector;
+  element.addEventListener("pointerdown", event => {
+    if (event.button !== 0) return;
+    if (handleSelector && !event.target.closest?.(handleSelector)) return;
+    if (!handleSelector && event.target.closest?.("button, input, textarea, select, a")) return;
+    const rect = element.getBoundingClientRect();
+    drag = { pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top, startX: event.clientX, startY: event.clientY, moved: false };
+    element.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  element.addEventListener("pointermove", event => {
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const maxLeft = Math.max(0, innerWidth - element.offsetWidth);
+    const maxTop = Math.max(0, innerHeight - element.offsetHeight);
+    drag.moved = drag.moved || Math.abs(event.clientX - drag.startX) > 3 || Math.abs(event.clientY - drag.startY) > 3;
+    const left = Math.min(Math.max(0, event.clientX - drag.offsetX), maxLeft);
+    const top = Math.min(Math.max(0, event.clientY - drag.offsetY), maxTop);
+    element.style.left = left + "px";
+    element.style.top = top + "px";
+    element.style.right = "auto";
+    element.style.bottom = "auto";
+  });
+  element.addEventListener("pointerup", event => {
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    element.releasePointerCapture?.(event.pointerId);
+    if (drag.moved) element.dataset.markableSuppressClickUntil = String(Date.now() + 250);
+    drag = null;
+  });
+  element.addEventListener("pointercancel", event => {
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    element.releasePointerCapture?.(event.pointerId);
+    drag = null;
+  });
+}
+
 async function copyText(value) {
   if (navigator.clipboard?.writeText) {
     try {
@@ -337,9 +376,15 @@ const overlay = document.querySelector("[data-markable-highlight]") || createOve
 const boxOverlay = document.querySelector("[data-markable-box]") || createOverlay("box");
 const list = document.querySelector("[data-markable-list]") || createList();
 for (const node of [launcher, panel, overlay, boxOverlay, list]) if (!node.isConnected) document.body.append(node);
+makeDraggable(launcher);
+makeDraggable(panel, { handleSelector: "[data-markable-drag-handle]" });
+makeDraggable(list, { handleSelector: "[data-markable-drag-handle]" });
 setTab("primary"); renderList();
 
-launcher.addEventListener("click", () => { openPanel(null); });
+launcher.addEventListener("click", () => {
+  if (Number(launcher.dataset.markableSuppressClickUntil || 0) > Date.now()) return;
+  openPanel(null);
+});
 panel.querySelector("[data-markable-close]").addEventListener("click", closePanel);
 panel.querySelector("[data-markable-cancel]").addEventListener("click", closePanel);
 panel.querySelectorAll("[data-markable-tab]").forEach(button => button.addEventListener("click", () => setTab(button.getAttribute("data-markable-tab"))));
@@ -350,9 +395,9 @@ list.addEventListener("click", async event => {
   if (!annotation) return;
   try {
     const copied = await copyText(JSON.stringify(annotation, null, 2));
-    button.textContent = copied ? "Copied" : "Copy failed";
+    button.textContent = copied ? "コピー済み" : "コピー失敗";
   } catch {
-    button.textContent = "Copy failed";
+    button.textContent = "コピー失敗";
   }
   setTimeout(() => { button.textContent = "JSON"; }, 1200);
 });
@@ -409,10 +454,10 @@ panel.addEventListener("submit", async event => {
   try {
     const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(annotation) });
     if (!response.ok) throw new Error("Request failed with " + response.status);
-    status.textContent = mode === "feedback" ? "Thanks — feedback sent." : "Mark saved.";
+    status.textContent = mode === "feedback" ? "ありがとうございます。フィードバックを送信しました。" : "マークを保存しました。";
   } catch (error) {
     console.warn("markable: unable to persist annotation", error, annotation);
-    status.textContent = "Captured locally. Configure an endpoint to persist it.";
+    status.textContent = "ローカルに記録しました。永続化するにはエンドポイントを設定してください。";
   }
   annotations.push(annotation);
   panel.reset();
