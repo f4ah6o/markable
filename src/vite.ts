@@ -1,53 +1,82 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import type { Plugin } from "vite";
+import type { MarkableConfig, MarkableLocale } from "./config";
 import type { MarkableAnnotation, MarkableMode } from "./core";
 
-export type MarkableLocale = "ja" | "en";
+export type { MarkableLocale };
 
-export interface MarkableViteOptions {
-  mode?: MarkableMode | "auto";
-  commentsFile?: string;
-  endpoint?: string;
-  inject?: boolean;
-  poweredBy?: boolean;
-  locale?: MarkableLocale;
+export interface MarkableViteOptions extends MarkableConfig {}
+
+interface ResolvedOptions {
+  endpoint: string;
+  commentsFile: string;
+  inject: boolean;
+  poweredBy: boolean;
+  locale: MarkableLocale;
+  devOnly: boolean;
+}
+
+function resolveOptions(options: MarkableConfig): ResolvedOptions {
+  return {
+    endpoint: options.endpoint ?? "/__markable/comments",
+    commentsFile: options.commentsFile ?? ".markable/comments.json",
+    inject: options.inject ?? true,
+    poweredBy: options.poweredBy ?? true,
+    locale: options.locale ?? "en",
+    devOnly: options.devOnly ?? false,
+  };
 }
 
 export function markable(options: MarkableViteOptions = {}): Plugin {
-  const endpoint = options.endpoint ?? "/__markable/comments";
-  const commentsFile = options.commentsFile ?? ".markable/comments.json";
-  const inject = options.inject ?? true;
-  const poweredBy = options.poweredBy ?? true;
-  const locale = options.locale ?? "en";
+  // `apply` is read synchronously by Vite before any hook runs, so an inline
+  // `devOnly: true` is the only way to fully exclude the plugin from the build
+  // graph. When `devOnly` comes from markable.config.ts instead, the hooks are
+  // disabled in `configResolved` (see `disabled`) which yields the same result.
+  const inlineDevOnly = options.devOnly === true;
+
+  let resolved = resolveOptions(options);
+  let resolvedMode: MarkableMode = resolveMode(options.mode, "development");
   let root = process.cwd();
-  let resolvedMode: MarkableMode = "review";
+  let disabled = false;
 
   return {
     name: "markable",
+    apply: inlineDevOnly ? "serve" : undefined,
 
-    configResolved(config) {
+    async configResolved(config) {
       root = config.root;
-      resolvedMode = resolveMode(options.mode, config.mode);
+      const fileConfig = await loadMarkableConfig(config.root);
+      const merged: MarkableConfig = { ...fileConfig, ...definedOnly(options) };
+      resolved = resolveOptions(merged);
+      resolvedMode = resolveMode(merged.mode, config.mode);
+      disabled = resolved.devOnly && config.command === "build";
     },
 
     transformIndexHtml() {
-      if (!inject) return [];
+      if (disabled || !resolved.inject) return [];
       return [
         {
           tag: "script",
           attrs: {
             type: "module",
           },
-          children: clientSource(endpoint, resolvedMode, poweredBy, locale),
+          children: clientSource(
+            resolved.endpoint,
+            resolvedMode,
+            resolved.poweredBy,
+            resolved.locale,
+          ),
           injectTo: "body",
         },
       ];
     },
 
     configureServer(server) {
-      server.middlewares.use(endpoint, async (req, res) => {
-        const file = path.resolve(root, commentsFile);
+      if (disabled) return;
+      server.middlewares.use(resolved.endpoint, async (req, res) => {
+        const file = path.resolve(root, resolved.commentsFile);
 
         if (req.method === "GET") {
           const annotations = await readAnnotations(file);
@@ -72,14 +101,89 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
     },
 
     resolveId(id) {
+      if (disabled) return;
       if (id === "/@markable/client") return id;
     },
 
     load(id) {
-      if (id !== "/@markable/client") return null;
-      return clientSource(endpoint, resolvedMode, poweredBy, locale);
+      if (disabled || id !== "/@markable/client") return null;
+      return clientSource(
+        resolved.endpoint,
+        resolvedMode,
+        resolved.poweredBy,
+        resolved.locale,
+      );
     },
   };
+}
+
+function definedOnly(options: MarkableConfig): MarkableConfig {
+  const result: MarkableConfig = {};
+  for (const [key, value] of Object.entries(options)) {
+    if (value !== undefined) (result as Record<string, unknown>)[key] = value;
+  }
+  return result;
+}
+
+const MARKABLE_CONFIG_FILES = [
+  "markable.config.ts",
+  "markable.config.mts",
+  "markable.config.mjs",
+  "markable.config.js",
+  "markable.config.cjs",
+  "markable.config.cts",
+];
+
+/**
+ * Load options from a Markable-owned `markable.config.*` file in the project
+ * root. TypeScript configs are transpiled with Vite's bundled esbuild and
+ * imported from a temporary file inside `node_modules` so that the
+ * `@f12o/markable/config` import resolves. Any failure falls back to defaults
+ * rather than breaking the dev server.
+ */
+export async function loadMarkableConfig(root: string): Promise<MarkableConfig> {
+  let file: string | undefined;
+  for (const name of MARKABLE_CONFIG_FILES) {
+    const candidate = path.join(root, name);
+    try {
+      await fs.access(candidate);
+      file = candidate;
+      break;
+    } catch {
+      // try the next candidate
+    }
+  }
+  if (!file) return {};
+
+  try {
+    if (/\.(mjs|js|cjs)$/.test(file)) {
+      const mod = await import(pathToFileURL(file).href);
+      return (mod.default ?? {}) as MarkableConfig;
+    }
+
+    const { transformWithEsbuild } = await import("vite");
+    const raw = await fs.readFile(file, "utf8");
+    const { code } = await transformWithEsbuild(raw, file, {
+      loader: "ts",
+      format: "esm",
+    });
+    const dir = path.join(root, "node_modules", ".markable");
+    await fs.mkdir(dir, { recursive: true });
+    const tmp = path.join(dir, `config.${process.pid}.${Date.now()}.mjs`);
+    await fs.writeFile(tmp, code);
+    try {
+      const mod = await import(pathToFileURL(tmp).href);
+      return (mod.default ?? {}) as MarkableConfig;
+    } finally {
+      await fs.rm(tmp, { force: true });
+    }
+  } catch (error) {
+    console.warn(
+      `markable: failed to load ${path.basename(file)}:`,
+      error instanceof Error ? error.message : error,
+    );
+    return {};
+  }
 }
 
 function resolveMode(mode: MarkableViteOptions["mode"], viteMode: string): MarkableMode {
