@@ -18,6 +18,8 @@ import { routeTree } from './routeTree.gen'
 // Styles
 import './styles/index.css'
 
+const routerBasepath = import.meta.env.BASE_URL.replace(/\/$/, '') || '/'
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -75,6 +77,7 @@ const queryClient = new QueryClient({
 // Create a new router instance
 const router = createRouter({
   routeTree,
+  basepath: routerBasepath,
   context: { queryClient },
   defaultPreload: 'intent',
   defaultPreloadStaleTime: 0,
