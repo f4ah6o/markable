@@ -43,6 +43,12 @@ jobs:
           cp -R examples/vite-todo/dist/. pages-dist/vue-todo/
           cp -R examples/shadcn-admin/dist/. pages-dist/shadcn-admin/
           node scripts/build-pages-index.mjs
+      - name: Verify Pages artifact
+        shell: bash
+        run: |
+          test -f pages-dist/index.html
+          test -f pages-dist/vue-todo/index.html
+          test -f pages-dist/shadcn-admin/index.html
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
