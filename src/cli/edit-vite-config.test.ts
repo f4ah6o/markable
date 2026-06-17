@@ -5,7 +5,6 @@ import {
   attachMarkable,
   detachMarkable,
   hasMarkable,
-  isBalanced,
   MARKABLE_VITE_IMPORT,
 } from "./edit-vite-config";
 
@@ -14,9 +13,9 @@ function fixture(name: string): string {
 }
 
 describe("attachMarkable", () => {
-  it("inserts the import and plugin into a defineConfig plugins array", () => {
+  it("inserts the import and plugin into a defineConfig plugins array", async () => {
     const before = fixture("define-config-with-plugins.ts");
-    const result = attachMarkable(before);
+    const result = await attachMarkable(before);
 
     expect(result.status).toBe("changed");
     expect(result.code).toContain(MARKABLE_VITE_IMPORT);
@@ -24,62 +23,84 @@ describe("attachMarkable", () => {
     // existing plugin and its relative order are preserved
     expect(result.code).toContain("react()");
     expect(result.code.indexOf("markable()")).toBeLessThan(result.code.indexOf("react()"));
-    expect(isBalanced(result.code)).toBe(true);
   });
 
-  it("preserves indentation for a multiline plugins array", () => {
-    const result = attachMarkable(fixture("define-config-multiline-plugins.ts"));
+  it("preserves indentation for a multiline plugins array", async () => {
+    const result = await attachMarkable(fixture("define-config-multiline-plugins.ts"));
     expect(result.status).toBe("changed");
     expect(result.code).toContain("  plugins: [\n    markable(),\n    react(),\n  ],");
     // unrelated config (server.port) is untouched
     expect(result.code).toContain("server: { port: 3000 },");
   });
 
-  it("creates a plugins array when one is missing", () => {
-    const result = attachMarkable(fixture("define-config-no-plugins.ts"));
+  it("creates a plugins array when one is missing", async () => {
+    const result = await attachMarkable(fixture("define-config-no-plugins.ts"));
     expect(result.status).toBe("changed");
     expect(result.code).toContain("plugins: [markable()]");
-    expect(isBalanced(result.code)).toBe(true);
   });
 
-  it("supports a plain object default export", () => {
-    const result = attachMarkable(fixture("plain-object.ts"));
+  it("supports a plain object default export", async () => {
+    const result = await attachMarkable(fixture("plain-object.ts"));
     expect(result.status).toBe("changed");
     expect(result.code).toContain("markable()");
     expect(result.code).toContain(MARKABLE_VITE_IMPORT);
   });
 
-  it("supports a same-file variable export", () => {
-    const result = attachMarkable(fixture("variable-export.ts"));
+  it("supports a same-file variable export", async () => {
+    const result = await attachMarkable(fixture("variable-export.ts"));
     expect(result.status).toBe("changed");
     expect(result.code).toContain("markable()");
     expect(result.code).toContain("export default config;");
   });
 
-  it("is idempotent and reports an already-configured file", () => {
+  it("is not fooled by regex literals containing brackets", async () => {
+    const before = [
+      'import { defineConfig } from "vite";',
+      "",
+      "export default defineConfig({",
+      "  define: { RE: /[{(]/g },",
+      "  plugins: [],",
+      "});",
+      "",
+    ].join("\n");
+    const result = await attachMarkable(before);
+    expect(result.status).toBe("changed");
+    expect(result.code).toContain("plugins: [markable()]");
+    expect(result.code).toContain("RE: /[{(]/g");
+    expect(detachMarkable(result.code, result.edits)).toBe(before);
+  });
+
+  it("is idempotent and reports an already-configured file", async () => {
     const before = fixture("define-config-with-plugins.ts");
-    const once = attachMarkable(before).code;
-    const twice = attachMarkable(once);
+    const once = (await attachMarkable(before)).code;
+    const twice = await attachMarkable(once);
 
     expect(twice.status).toBe("already");
     expect(twice.code).toBe(once);
   });
 
-  it("does not modify an already-installed config", () => {
+  it("does not modify an already-installed config", async () => {
     const before = fixture("already-installed.ts");
-    const result = attachMarkable(before);
+    const result = await attachMarkable(before);
     expect(result.status).toBe("already");
     expect(result.code).toBe(before);
   });
 
-  it("refuses to edit an async factory config", () => {
+  it("refuses to edit an async factory config", async () => {
     const before = fixture("async-factory.ts");
-    const result = attachMarkable(before);
+    const result = await attachMarkable(before);
     expect(result.status).toBe("unsupported");
     expect(result.code).toBe(before);
   });
 
-  it("satisfies the equivalence invariant for every supported shape", () => {
+  it("refuses to edit a config with syntax errors", async () => {
+    const before = "export default defineConfig({ plugins: [react()  });\n";
+    const result = await attachMarkable(before);
+    expect(result.status).toBe("unsupported");
+    expect(result.reason).toBe("parse-error");
+  });
+
+  it("satisfies the equivalence invariant for every supported shape", async () => {
     for (const name of [
       "define-config-with-plugins.ts",
       "define-config-multiline-plugins.ts",
@@ -88,7 +109,7 @@ describe("attachMarkable", () => {
       "variable-export.ts",
     ]) {
       const before = fixture(name);
-      const result = attachMarkable(before);
+      const result = await attachMarkable(before);
       expect(result.status).toBe("changed");
       // detach removes exactly what attach inserted, restoring the original bytes
       expect(detachMarkable(result.code, result.edits)).toBe(before);
@@ -97,20 +118,13 @@ describe("attachMarkable", () => {
 });
 
 describe("hasMarkable", () => {
-  it("detects both the import and the plugin call", () => {
-    const presence = hasMarkable(fixture("already-installed.ts"));
+  it("detects both the import and the plugin call", async () => {
+    const presence = await hasMarkable(fixture("already-installed.ts"));
     expect(presence).toEqual({ import: true, plugin: true });
   });
 
-  it("reports absence in a clean config", () => {
-    const presence = hasMarkable(fixture("define-config-with-plugins.ts"));
+  it("reports absence in a clean config", async () => {
+    const presence = await hasMarkable(fixture("define-config-with-plugins.ts"));
     expect(presence).toEqual({ import: false, plugin: false });
-  });
-});
-
-describe("isBalanced", () => {
-  it("ignores brackets inside strings and comments", () => {
-    expect(isBalanced('const a = "{ [ (";\n// ) ] }\n')).toBe(true);
-    expect(isBalanced("const a = {")).toBe(false);
   });
 });

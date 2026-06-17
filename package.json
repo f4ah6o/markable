@@ -46,6 +46,10 @@
     "build:demo": "pnpm --filter @f12o/markable-vite-todo-demo build",
     "build:shadcn-admin": "pnpm --filter @f12o/markable-shadcn-admin-demo build"
   },
+  "dependencies": {
+    "tree-sitter-wasms": "0.1.13",
+    "web-tree-sitter": "0.22.6"
+  },
   "devDependencies": {
     "@types/node": "^22.10.2",
     "tsup": "^8.3.5",

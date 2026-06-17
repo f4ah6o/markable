@@ -182,7 +182,7 @@ async function runInit(root: string): Promise<number> {
   } else {
     const vitePath = path.join(root, viteConfig);
     const before = await fs.readFile(vitePath, "utf8");
-    const result = attachMarkable(before);
+    const result = await attachMarkable(before);
     if (result.status === "already") {
       summary.push(`${viteConfig} already wires up markable()`);
     } else if (result.status === "changed") {
@@ -259,7 +259,7 @@ async function runDoctor(root: string): Promise<number> {
   let wired = false;
   if (viteConfig) {
     const source = await fs.readFile(path.join(root, viteConfig), "utf8");
-    const presence = hasMarkable(source);
+    const presence = await hasMarkable(source);
     wired = presence.import && presence.plugin;
   }
 
