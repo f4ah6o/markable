@@ -45,6 +45,46 @@ export default defineConfig({
 });
 ```
 
+## CLI: dev-only setup
+
+For projects that use Markable only as a developer review tool, the bundled CLI
+wires up a safe, development-only configuration:
+
+```bash
+pnpm dlx @f12o/markable init
+```
+
+`init` adds `@f12o/markable` to `devDependencies`, writes a Markable-owned
+`markable.config.ts`, adds a minimal `markable()` plugin call to your existing
+`vite.config.*`, and appends `.markable/` to `.gitignore`. The vite config edit
+is a byte-range insertion that preserves your formatting, comments, and plugin
+order; complex configs are never overwritten — the CLI prints a manual snippet
+instead.
+
+```ts
+// markable.config.ts (generated)
+import { defineMarkableConfig } from "@f12o/markable/config";
+
+export default defineMarkableConfig({
+  devOnly: true,
+  mode: "review",
+  commentsFile: ".markable/comments.json",
+  endpoint: "/__markable/comments",
+});
+```
+
+With `devOnly: true`, Markable runs under `vite dev` and is excluded from
+`vite build`. Running `init` again is idempotent. Two more commands are
+available:
+
+```bash
+markable doctor   # report the current integration status
+markable remove   # undo the CLI-owned edits (only when still unmodified)
+```
+
+The `devOnly` option is also available directly on the plugin
+(`markable({ devOnly: true })`), which sets Vite's `apply: "serve"`.
+
 ## UI locale
 
 The UI injected by Markable supports English and Japanese. English is the default locale.

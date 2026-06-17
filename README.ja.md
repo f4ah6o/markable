@@ -43,6 +43,45 @@ export default defineConfig({
 
 `mode: "auto"` は Vite の開発時に review モード、本番ビルド時に feedback モードへ解決されます。
 
+## CLI: 開発時のみのセットアップ
+
+Markable を開発者向けのレビュー用途だけで使う場合は、同梱の CLI で開発時専用の
+設定を安全に追加できます。
+
+```bash
+pnpm dlx @f12o/markable init
+```
+
+`init` は `@f12o/markable` を `devDependencies` に追加し、Markable 専用の
+`markable.config.ts` を生成し、既存の `vite.config.*` へ最小限の `markable()`
+プラグイン呼び出しを挿入し、`.gitignore` に `.markable/` を追記します。Vite
+設定の編集は書式・コメント・プラグインの順序を保つバイト範囲の挿入で行い、
+複雑な設定は上書きしません（代わりに手動用のスニペットを表示します）。
+
+```ts
+// markable.config.ts（生成されるファイル）
+import { defineMarkableConfig } from "@f12o/markable/config";
+
+export default defineMarkableConfig({
+  devOnly: true,
+  mode: "review",
+  commentsFile: ".markable/comments.json",
+  endpoint: "/__markable/comments",
+});
+```
+
+`devOnly: true` のとき、Markable は `vite dev` でのみ動作し、`vite build` からは
+除外されます。`init` は繰り返し実行しても安全です。次の 2 つのコマンドも
+利用できます。
+
+```bash
+markable doctor   # 現在の組み込み状況を表示
+markable remove   # CLI が行った編集を取り消す（未変更の場合のみ）
+```
+
+`devOnly` はプラグインに直接指定することもでき（`markable({ devOnly: true })`）、
+その場合は Vite の `apply: "serve"` を設定します。
+
 ## UI の言語
 
 Markable が注入する UI は英語と日本語に対応しています。既定値は英語です。
