@@ -15,6 +15,7 @@ interface ResolvedOptions {
   inject: boolean;
   poweredBy: boolean;
   locale: MarkableLocale;
+  issueRepo: string | undefined;
   devOnly: boolean;
 }
 
@@ -25,6 +26,7 @@ function resolveOptions(options: MarkableConfig): ResolvedOptions {
     inject: options.inject ?? true,
     poweredBy: options.poweredBy ?? true,
     locale: options.locale ?? "en",
+    issueRepo: options.issueRepo,
     devOnly: options.devOnly ?? false,
   };
 }
@@ -67,6 +69,7 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
             resolvedMode,
             resolved.poweredBy,
             resolved.locale,
+            resolved.issueRepo,
           ),
           injectTo: "body",
         },
@@ -112,6 +115,7 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
         resolvedMode,
         resolved.poweredBy,
         resolved.locale,
+        resolved.issueRepo,
       );
     },
   };
@@ -223,16 +227,38 @@ function sendJson(
   res.end(JSON.stringify(value));
 }
 
+export interface MarkableClientScriptOptions {
+  mode: MarkableMode;
+  endpoint?: string;
+  poweredBy?: boolean;
+  locale?: MarkableLocale;
+  issueRepo?: string;
+}
+
+export function markableClientScript(options: MarkableClientScriptOptions): string {
+  return clientSource(
+    options.endpoint ?? "/__markable/comments",
+    options.mode,
+    options.poweredBy ?? true,
+    options.locale ?? "en",
+    options.issueRepo,
+  );
+}
+
 function clientSource(
   endpoint: string,
   mode: MarkableMode,
   poweredBy: boolean,
   locale: MarkableLocale,
+  issueRepo: string | undefined,
 ): string {
   return `
 const endpoint = ${JSON.stringify(endpoint)};
 const mode = ${JSON.stringify(mode)};
 const locale = ${JSON.stringify(locale)};
+const issueRepo = ${JSON.stringify(issueRepo ?? "")};
+const issueSubmitLabel = ${JSON.stringify(locale === "ja" ? "Issueを送信" : "Submit Issue")};
+const issueTitleDefault = ${JSON.stringify(locale === "ja" ? "フィードバック" : "Feedback")};
 const poweredByFooter = ${JSON.stringify(poweredBy ? '<footer data-markable-powered-by style="margin-top:10px;padding-top:10px;border-top:1px solid #e5e7eb;text-align:right;color:#6b7280;font-size:11px">Powered by <a href="https://github.com/f4ah6o/markable/" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none">Markable</a></footer>' : "")};
 let candidateElement = null;
 let selectedElement = null;
@@ -365,7 +391,7 @@ function createPanel() {
   panel.style.borderRadius = "18px";
   panel.style.boxShadow = "0 24px 70px rgba(15, 23, 42, 0.28)";
   panel.style.width = "min(392px, calc(100vw - 32px))";
-  panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px"><strong data-markable-title data-markable-drag-handle style="font-size:16px;cursor:move;user-select:none">' + labels.panelTitle + '</strong><button type="button" data-markable-close aria-label="' + messages.close + '" style="border:0;background:transparent;font-size:20px;line-height:1;cursor:pointer;color:#6b7280">×</button></div><div data-markable-tabs style="display:grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:999px;background:#f3f4f6;margin-bottom:12px"><button type="button" data-markable-tab="primary" style="border:0;border-radius:999px;padding:8px;background:#fff;color:#111827;box-shadow:0 1px 3px rgba(0,0,0,.08);cursor:pointer">' + labels.tabPrimary + '</button><button type="button" data-markable-tab="secondary" style="border:0;border-radius:999px;padding:8px;background:transparent;color:#6b7280;cursor:pointer">' + labels.tabSecondary + '</button></div><p data-markable-target-summary style="margin:0 0 8px;color:#4b5563;font-size:12px">' + labels.helper + '</p><textarea name="message" required data-markable-input style="box-sizing:border-box;width:100%;min-height:104px;border:1px solid #d1d5db;border-radius:12px;padding:10px;resize:vertical"></textarea><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px"><button type="button" data-markable-cancel style="border:1px solid #d1d5db;background:#fff;border-radius:999px;padding:8px 12px;cursor:pointer">' + messages.cancel + '</button><button type="submit" data-markable-submit style="border:0;background:#2563eb;color:#fff;border-radius:999px;padding:8px 14px;cursor:pointer">' + labels.submit + '</button></div><p data-markable-status role="status" style="min-height:16px;margin:8px 0 0;color:#4b5563;font-size:12px"></p>' + poweredByFooter;
+  panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px"><strong data-markable-title data-markable-drag-handle style="font-size:16px;cursor:move;user-select:none">' + labels.panelTitle + '</strong><button type="button" data-markable-close aria-label="' + messages.close + '" style="border:0;background:transparent;font-size:20px;line-height:1;cursor:pointer;color:#6b7280">×</button></div><div data-markable-tabs style="display:grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:999px;background:#f3f4f6;margin-bottom:12px"><button type="button" data-markable-tab="primary" style="border:0;border-radius:999px;padding:8px;background:#fff;color:#111827;box-shadow:0 1px 3px rgba(0,0,0,.08);cursor:pointer">' + labels.tabPrimary + '</button><button type="button" data-markable-tab="secondary" style="border:0;border-radius:999px;padding:8px;background:transparent;color:#6b7280;cursor:pointer">' + labels.tabSecondary + '</button></div><p data-markable-target-summary style="margin:0 0 8px;color:#4b5563;font-size:12px">' + labels.helper + '</p><textarea name="message" required data-markable-input style="box-sizing:border-box;width:100%;min-height:104px;border:1px solid #d1d5db;border-radius:12px;padding:10px;resize:vertical"></textarea><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px"><button type="button" data-markable-cancel style="border:1px solid #d1d5db;background:#fff;border-radius:999px;padding:8px 12px;cursor:pointer">' + messages.cancel + '</button><div style="display:flex;gap:8px">' + (issueRepo ? '<button type="button" data-markable-issue-submit style="border:1px solid #2563eb;background:#fff;color:#2563eb;border-radius:999px;padding:8px 12px;cursor:pointer">' + issueSubmitLabel + '</button>' : '') + '<button type="submit" data-markable-submit style="border:0;background:#2563eb;color:#fff;border-radius:999px;padding:8px 14px;cursor:pointer">' + labels.submit + '</button></div></div><p data-markable-status role="status" style="min-height:16px;margin:8px 0 0;color:#4b5563;font-size:12px"></p>' + poweredByFooter;
   panel.querySelector("[data-markable-input]").placeholder = labels.placeholder;
   return panel;
 }
@@ -489,6 +515,14 @@ function renderList() {
   list.innerHTML = '<strong data-markable-drag-handle style="display:block;margin-bottom:8px;cursor:move;user-select:none">' + heading + '</strong>' + (annotations.length ? annotations.slice(-4).reverse().map(item => '<article style="border-top:1px solid #e5e7eb;padding-top:8px;margin-top:8px"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div style="min-width:0"><p style="margin:0 0 4px;color:#111827">' + escapeHtml(item.message).slice(0, 140) + '</p><small style="color:#6b7280">' + item.target.kind + ' · ' + new Date(item.createdAt).toLocaleTimeString(locale) + '</small></div><button type="button" data-markable-copy-json="' + escapeHtml(item.id) + '" aria-label="' + messages.copyJson + '" title="' + messages.copyJsonTitle + '" style="flex:0 0 auto;border:1px solid #d1d5db;background:#fff;color:#374151;border-radius:999px;padding:4px 8px;font-size:12px;line-height:1.2;cursor:pointer">JSON</button></div></article>').join('') : '<p style="margin:0;color:#6b7280">' + labels.empty + '</p>');
 }
 function escapeHtml(value) { return String(value).replace(/[&<>"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char])); }
+function buildIssueBody(message) {
+  const parts = [];
+  if (message) { parts.push(message); parts.push(""); parts.push("---"); parts.push(""); }
+  parts.push("**Page:** " + location.href);
+  parts.push("**Target:** " + summarizeTarget(currentTarget()));
+  parts.push("**Viewport:** " + innerWidth + "x" + innerHeight);
+  return parts.join("\\n");
+}
 
 function makeDraggable(element, options = {}) {
   let drag = null;
@@ -642,5 +676,12 @@ panel.addEventListener("submit", async event => {
   renderList();
   closePanel();
 });
+if (issueRepo) {
+  panel.querySelector("[data-markable-issue-submit]").addEventListener("click", () => {
+    const message = String(new FormData(panel).get("message") || "").trim();
+    const rawTitle = message.split("\\n")[0].slice(0, 72) || issueTitleDefault;
+    window.open("https://github.com/" + issueRepo + "/issues/new?title=" + encodeURIComponent(rawTitle) + "&body=" + encodeURIComponent(buildIssueBody(message)), "_blank", "noopener,noreferrer");
+  });
+}
 `;
 }

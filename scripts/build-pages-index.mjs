@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { markableClientScript } from "../dist/vite.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const examplesFile = path.join(root, "examples", "examples.json");
@@ -161,6 +162,9 @@ function renderPage(items) {
 ${cards}
       </section>
     </main>
+    <script type="module">
+${markableClientScript({ mode: "feedback" })}
+    </script>
   </body>
 </html>
 `;

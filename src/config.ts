@@ -15,6 +15,10 @@ export interface MarkableConfig {
   poweredBy?: boolean;
   locale?: MarkableLocale;
   /**
+   * `owner/repo` used to build the "Submit Issue" link in the injected UI.
+   */
+  issueRepo?: string;
+  /**
    * Restrict Markable to the Vite dev server. When enabled the plugin is never
    * active during `vite build`.
    */

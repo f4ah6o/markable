@@ -21,6 +21,7 @@ export default defineConfig({
       mode: 'auto',
       commentsFile: '.markable/comments.json',
       endpoint: '/__markable/comments',
+      issueRepo: 'f4ah6o/markable',
     }),
   ],
   resolve: {
