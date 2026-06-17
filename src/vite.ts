@@ -117,14 +117,13 @@ function clientSource(endpoint: string, mode: MarkableMode): string {
   return `
 const endpoint = ${JSON.stringify(endpoint)};
 const mode = ${JSON.stringify(mode)};
-let selectionMode = "browse";
 let candidateElement = null;
+let selectedElement = null;
 let selectedTarget = null;
 let dragging = false;
 let dragStart = null;
 let activeTab = "primary";
 const annotations = [];
-const enableBoxSelection = true;
 
 const labels = {
   review: {
@@ -134,7 +133,7 @@ const labels = {
     tabSecondary: "Ask AI",
     placeholder: "Leave a review comment",
     submit: "Save mark",
-    helper: "Select an element, drag a box, or highlight text before saving.",
+    helper: "Click a highlighted element, drag an empty area, or save general page feedback.",
     empty: "No marks yet."
   },
   feedback: {
@@ -144,7 +143,7 @@ const labels = {
     tabSecondary: "Question",
     placeholder: "Share feedback about this page",
     submit: "Send feedback",
-    helper: "Point to a UI element, select text, or send general page feedback.",
+    helper: "Click a highlighted element, drag an empty area, or send general page feedback.",
     empty: "No feedback submitted in this session."
   }
 }[mode];
@@ -195,25 +194,6 @@ function createPanel() {
   return panel;
 }
 
-function createToolbar() {
-  const toolbar = document.createElement("div");
-  toolbar.setAttribute("data-markable-control", "");
-  applyBaseStyles(toolbar);
-  toolbar.style.position = "fixed";
-  toolbar.style.left = "50%";
-  toolbar.style.bottom = "20px";
-  toolbar.style.transform = "translateX(-50%)";
-  toolbar.style.zIndex = "2147483647";
-  toolbar.style.display = "none";
-  toolbar.style.gap = "6px";
-  toolbar.style.padding = "6px";
-  toolbar.style.borderRadius = "999px";
-  toolbar.style.background = "rgba(17,24,39,.92)";
-  toolbar.style.boxShadow = "0 14px 36px rgba(0,0,0,.24)";
-  toolbar.innerHTML = ['browse:Browse','element:Element','text:Text','box:Box'].map(item => { const [value,label]=item.split(':'); return '<button type="button" data-markable-mode="' + value + '" style="border:0;border-radius:999px;padding:8px 10px;background:transparent;color:#e5e7eb;cursor:pointer">' + label + '</button>'; }).join('');
-  return toolbar;
-}
-
 function createOverlay(kind) {
   const overlay = document.createElement("div");
   overlay.setAttribute(kind === "box" ? "data-markable-box" : "data-markable-highlight", "");
@@ -249,7 +229,7 @@ function createList() {
 }
 
 function isMarkableElement(element) {
-  return Boolean(element?.closest?.("[data-markable-launcher], [data-markable-control], [data-markable-panel], [data-markable-highlight], [data-markable-box], [data-markable-list]"));
+  return Boolean(element?.closest?.("[data-markable-launcher], [data-markable-panel], [data-markable-highlight], [data-markable-box], [data-markable-list]"));
 }
 
 function selectorFor(element) {
@@ -273,34 +253,25 @@ function elementTarget(element) {
   const rect = element.getBoundingClientRect();
   return { kind: "dom_element", locator: { tag: element.tagName.toLowerCase(), selector: selectorFor(element), dataMarkableId: element.getAttribute("data-markable-id") || undefined, id: element.id || undefined, classes: element.classList.length ? Array.from(element.classList).slice(0, 8) : undefined, ariaLabel: element.getAttribute("aria-label") || undefined, role: element.getAttribute("role") || undefined, textSnippet: (element.innerText || element.textContent || "").trim().replace(/\s+/g, " ").slice(0, 160) || undefined }, rect: rectObject(rect) };
 }
-function textTarget() {
-  const selection = document.getSelection();
-  if (!selection || selection.isCollapsed) return null;
-  const range = selection.getRangeAt(0);
-  const rect = range.getBoundingClientRect();
-  const container = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE ? range.commonAncestorContainer : range.commonAncestorContainer.parentElement;
-  return { kind: "dom_range", locator: { selector: container ? selectorFor(container) : undefined, url: location.href, startOffset: range.startOffset, endOffset: range.endOffset }, quote: selection.toString(), rect: rectObject(rect) };
-}
 function bboxTarget(rect) { return { kind: "bbox", locator: { url: location.href }, rect: rectObject(rect) }; }
-function currentTarget() { return selectedTarget || textTarget() || { kind: "dom_range", locator: { url: location.href } }; }
+function currentPageTarget() { return { kind: "dom_range", locator: { url: location.href } }; }
+function currentTarget() { return selectedTarget || currentPageTarget(); }
 function context() { return { url: location.href, title: document.title, viewport: { width: innerWidth, height: innerHeight }, userAgent: navigator.userAgent, markableTab: activeTab }; }
 
-function setMode(nextMode) {
-  selectionMode = nextMode;
-  candidateElement = null;
-  dragging = false;
-  if (nextMode !== "element") hideOverlay(overlay);
-  if (nextMode !== "box") hideOverlay(boxOverlay);
-  toolbar.querySelectorAll("[data-markable-mode]").forEach(button => {
-    const active = button.getAttribute("data-markable-mode") === selectionMode;
-    button.style.background = active ? "#fff" : "transparent";
-    button.style.color = active ? "#111827" : "#e5e7eb";
-  });
-}
 function positionOverlay(targetOverlay, rect) { targetOverlay.style.display = "block"; targetOverlay.style.left = rect.x + "px"; targetOverlay.style.top = rect.y + "px"; targetOverlay.style.width = rect.width + "px"; targetOverlay.style.height = rect.height + "px"; }
 function showOverlayFor(element) { positionOverlay(overlay, element.getBoundingClientRect()); }
 function hideOverlay(targetOverlay) { targetOverlay.style.display = "none"; }
-function targetAtPoint(clientX, clientY) { const element = document.elementFromPoint(clientX, clientY); if (!element || isMarkableElement(element)) return null; return element.closest("[data-markable-id]") || element; }
+function isPanelOpen() { return panel.style.display !== "none"; }
+function practicalElementFor(element) {
+  if (!element || isMarkableElement(element)) return null;
+  const marked = element.closest("[data-markable-id]");
+  if (marked) return marked;
+  return element.closest("button, a, input, textarea, select, label, [role], [aria-label], li, article, section, form");
+}
+function targetAtPoint(clientX, clientY) {
+  const element = document.elementFromPoint(clientX, clientY);
+  return practicalElementFor(element);
+}
 function rectFromPoints(a, b) { const x = Math.min(a.x, b.x); const y = Math.min(a.y, b.y); return new DOMRect(x, y, Math.abs(a.x - b.x), Math.abs(a.y - b.y)); }
 
 function setTab(tab) {
@@ -317,45 +288,116 @@ function setTab(tab) {
 function summarizeTarget(target) {
   if (target?.kind === "dom_element") { const l = target.locator; return "Target: " + (l.dataMarkableId || l.id || l.ariaLabel || l.selector || l.tag); }
   if (target?.kind === "bbox") return "Target: selected screen area";
-  if (target?.quote) return "Target: selected text — “" + target.quote.slice(0, 80) + "”";
   return "Target: current page";
 }
-function openPanel(target) {
-  selectedTarget = target || textTarget();
+function updateSelectedTarget(target) {
+  selectedTarget = target || null;
   panel.querySelector("[data-markable-target-summary]").textContent = summarizeTarget(selectedTarget);
+}
+function updateSelectedElement(element) {
+  selectedElement = element || null;
+  if (selectedElement) showOverlayFor(selectedElement);
+}
+function openPanel(target) {
+  updateSelectedTarget(target);
   panel.style.display = "block";
   launcher.style.display = "none";
-  toolbar.style.display = "flex";
   panel.querySelector("[data-markable-input]").focus();
 }
-function closePanel() { panel.style.display = "none"; launcher.style.display = "block"; selectedTarget = null; setMode("browse"); hideOverlay(overlay); hideOverlay(boxOverlay); }
+function resetTargeting() { candidateElement = null; selectedElement = null; dragging = false; dragStart = null; selectedTarget = null; hideOverlay(overlay); hideOverlay(boxOverlay); }
+function closePanel() { panel.style.display = "none"; launcher.style.display = "block"; resetTargeting(); }
 function renderList() {
   list.style.display = annotations.length ? "block" : "none";
-  list.innerHTML = '<strong style="display:block;margin-bottom:8px">Recent ' + (mode === "feedback" ? "feedback" : "marks") + '</strong>' + (annotations.length ? annotations.slice(-4).reverse().map(item => '<article style="border-top:1px solid #e5e7eb;padding-top:8px;margin-top:8px"><p style="margin:0 0 4px;color:#111827">' + escapeHtml(item.message).slice(0, 140) + '</p><small style="color:#6b7280">' + item.target.kind + ' · ' + new Date(item.createdAt).toLocaleTimeString() + '</small></article>').join('') : '<p style="margin:0;color:#6b7280">' + labels.empty + '</p>');
+  list.innerHTML = '<strong style="display:block;margin-bottom:8px">Recent ' + (mode === "feedback" ? "feedback" : "marks") + '</strong>' + (annotations.length ? annotations.slice(-4).reverse().map(item => '<article style="border-top:1px solid #e5e7eb;padding-top:8px;margin-top:8px"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div style="min-width:0"><p style="margin:0 0 4px;color:#111827">' + escapeHtml(item.message).slice(0, 140) + '</p><small style="color:#6b7280">' + item.target.kind + ' · ' + new Date(item.createdAt).toLocaleTimeString() + '</small></div><button type="button" data-markable-copy-json="' + escapeHtml(item.id) + '" aria-label="Copy mark JSON" title="Copy JSON" style="flex:0 0 auto;border:1px solid #d1d5db;background:#fff;color:#374151;border-radius:999px;padding:4px 8px;font-size:12px;line-height:1.2;cursor:pointer">JSON</button></div></article>').join('') : '<p style="margin:0;color:#6b7280">' + labels.empty + '</p>');
 }
 function escapeHtml(value) { return String(value).replace(/[&<>"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char])); }
+async function copyText(value) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch {
+      // Fall back for embedded browsers that expose clipboard but reject writes.
+    }
+  }
+  const input = document.createElement("textarea");
+  input.value = value;
+  input.style.position = "fixed";
+  input.style.left = "-9999px";
+  document.body.append(input);
+  input.select();
+  const copied = document.execCommand("copy");
+  input.remove();
+  return copied;
+}
 
 const launcher = document.querySelector("[data-markable-launcher]") || createLauncher();
-const toolbar = document.querySelector("[data-markable-control]") || createToolbar();
 const panel = document.querySelector("[data-markable-panel]") || createPanel();
 const overlay = document.querySelector("[data-markable-highlight]") || createOverlay("element");
 const boxOverlay = document.querySelector("[data-markable-box]") || createOverlay("box");
 const list = document.querySelector("[data-markable-list]") || createList();
-for (const node of [launcher, toolbar, panel, overlay, boxOverlay, list]) if (!node.isConnected) document.body.append(node);
-setMode("browse"); setTab("primary"); renderList();
+for (const node of [launcher, panel, overlay, boxOverlay, list]) if (!node.isConnected) document.body.append(node);
+setTab("primary"); renderList();
 
-launcher.addEventListener("click", () => { toolbar.style.display = "flex"; openPanel(textTarget()); });
-toolbar.addEventListener("click", event => { const button = event.target.closest?.("[data-markable-mode]"); if (!button) return; setMode(button.getAttribute("data-markable-mode")); if (selectionMode === "text") openPanel(textTarget()); });
+launcher.addEventListener("click", () => { openPanel(null); });
 panel.querySelector("[data-markable-close]").addEventListener("click", closePanel);
 panel.querySelector("[data-markable-cancel]").addEventListener("click", closePanel);
 panel.querySelectorAll("[data-markable-tab]").forEach(button => button.addEventListener("click", () => setTab(button.getAttribute("data-markable-tab"))));
+list.addEventListener("click", async event => {
+  const button = event.target.closest?.("[data-markable-copy-json]");
+  if (!button) return;
+  const annotation = annotations.find(item => item.id === button.getAttribute("data-markable-copy-json"));
+  if (!annotation) return;
+  try {
+    const copied = await copyText(JSON.stringify(annotation, null, 2));
+    button.textContent = copied ? "Copied" : "Copy failed";
+  } catch {
+    button.textContent = "Copy failed";
+  }
+  setTimeout(() => { button.textContent = "JSON"; }, 1200);
+});
 
-document.addEventListener("selectionchange", () => { if (selectionMode === "text") { const target = textTarget(); if (target) openPanel(target); } });
-document.addEventListener("pointermove", event => { if (selectionMode !== "element") return; const element = targetAtPoint(event.clientX, event.clientY); if (!element) { candidateElement = null; hideOverlay(overlay); return; } candidateElement = element; showOverlayFor(element); }, true);
-document.addEventListener("click", event => { if (selectionMode !== "element") return; const element = candidateElement || targetAtPoint(event.clientX, event.clientY); if (!element) return; event.preventDefault(); event.stopPropagation(); showOverlayFor(element); setMode("browse"); openPanel(elementTarget(element)); }, true);
-document.addEventListener("pointerdown", event => { if (selectionMode !== "box" || !enableBoxSelection || isMarkableElement(event.target)) return; dragging = true; dragStart = { x: event.clientX, y: event.clientY }; positionOverlay(boxOverlay, new DOMRect(dragStart.x, dragStart.y, 0, 0)); event.preventDefault(); }, true);
-document.addEventListener("pointermove", event => { if (!dragging || selectionMode !== "box") return; positionOverlay(boxOverlay, rectFromPoints(dragStart, { x: event.clientX, y: event.clientY })); }, true);
-document.addEventListener("pointerup", event => { if (!dragging || selectionMode !== "box") return; dragging = false; const rect = rectFromPoints(dragStart, { x: event.clientX, y: event.clientY }); if (rect.width > 8 && rect.height > 8) { selectedTarget = bboxTarget(rect); setMode("browse"); openPanel(selectedTarget); } }, true);
+document.addEventListener("pointermove", event => {
+  if (!isPanelOpen()) return;
+  if (dragging) { positionOverlay(boxOverlay, rectFromPoints(dragStart, { x: event.clientX, y: event.clientY })); return; }
+  const element = targetAtPoint(event.clientX, event.clientY);
+  if (!element) { candidateElement = null; if (!selectedElement) hideOverlay(overlay); return; }
+  candidateElement = element;
+  if (selectedElement) return;
+  showOverlayFor(element);
+}, true);
+document.addEventListener("click", event => {
+  if (!isPanelOpen()) return;
+  const element = targetAtPoint(event.clientX, event.clientY);
+  if (!element) return;
+  event.preventDefault();
+  event.stopPropagation();
+  updateSelectedElement(element);
+  updateSelectedTarget(elementTarget(element));
+}, true);
+document.addEventListener("pointerdown", event => {
+  if (!isPanelOpen() || isMarkableElement(event.target)) return;
+  const element = targetAtPoint(event.clientX, event.clientY);
+  if (element) return;
+  dragging = true;
+  dragStart = { x: event.clientX, y: event.clientY };
+  candidateElement = null;
+  updateSelectedElement(null);
+  hideOverlay(overlay);
+  positionOverlay(boxOverlay, new DOMRect(dragStart.x, dragStart.y, 0, 0));
+  event.preventDefault();
+}, true);
+document.addEventListener("pointerup", event => {
+  if (!dragging) return;
+  dragging = false;
+  const rect = rectFromPoints(dragStart, { x: event.clientX, y: event.clientY });
+  dragStart = null;
+  if (rect.width > 8 && rect.height > 8) {
+    updateSelectedTarget(bboxTarget(rect));
+  } else {
+    hideOverlay(boxOverlay);
+  }
+}, true);
 
 panel.addEventListener("submit", async event => {
   event.preventDefault();

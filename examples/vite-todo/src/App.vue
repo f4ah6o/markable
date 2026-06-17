@@ -9,9 +9,9 @@ type Todo = {
 
 const draft = ref("");
 const todos = ref<Todo[]>([
-  { id: 1, label: "Select this copy and add a review annotation", done: false },
+  { id: 1, label: "Click a highlighted Todo item to add a review annotation", done: false },
   { id: 2, label: "Ask how due dates should work in production feedback", done: false },
-  { id: 3, label: "Inspect the captured URL, selection, viewport, and message", done: true },
+  { id: 3, label: "Inspect the captured URL, target, viewport, and message", done: true },
 ]);
 
 const remaining = computed(() => todos.value.filter((todo) => !todo.done).length);
@@ -39,15 +39,16 @@ function removeTodo(id: number) {
       <p class="eyebrow">@f12o/markable demo</p>
       <h1 id="demo-title">Make a Todo app markable without changing its feature code.</h1>
       <p class="lede">
-        Use the floating Mark or Feedback button to submit structured annotations against selected
-        Todo text or the current page context.
+        Use the floating Mark or Feedback button to submit structured annotations against highlighted
+        Todo elements, dragged regions, or the current page context.
       </p>
       <div class="mode-grid" aria-label="Demo modes">
         <article>
           <h2>Review mode</h2>
           <p>
-            Run the demo locally with <code>pnpm dev</code>, select Todo copy, then submit a review
-            annotation. The Vite dev server stores JSON in <code>.markable/comments.json</code>.
+            Run the demo locally with <code>pnpm dev</code>, click a highlighted Todo element or
+            drag an empty area, then submit a review annotation. The Vite dev server stores JSON in
+            <code>.markable/comments.json</code>.
           </p>
         </article>
         <article>
@@ -91,7 +92,7 @@ function removeTodo(id: number) {
     <section class="capture-card" aria-labelledby="capture-title">
       <h2 id="capture-title">What markable captures</h2>
       <ul>
-        <li>Selected text and a DOM range target when text is highlighted.</li>
+        <li>A highlighted DOM element, a dragged screen region, or the current page target.</li>
         <li>The current URL, document title, viewport size, and user agent.</li>
         <li>A mode-specific message: review annotation in dev, feedback or inquiry in prod.</li>
         <li>Status and timestamps so downstream tools can resolve or route the annotation.</li>
