@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -63,10 +64,13 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
       return [
         {
           tag: "script",
-          attrs: {
-            type: "module",
-            src: "/@markable/client",
-          },
+          children: clientSource(
+            resolved.endpoint,
+            resolvedMode,
+            resolved.poweredBy,
+            resolved.locale,
+            resolved.issueRepo,
+          ),
           injectTo: "body",
         },
       ];
@@ -262,6 +266,23 @@ export function markableClientScript(options: MarkableClientScriptOptions): stri
   );
 }
 
+function loadBrowserIife(): string {
+  const candidates = [
+    new URL("./browser.global.js", import.meta.url),
+    new URL("../dist/browser.global.js", import.meta.url),
+  ];
+  for (const url of candidates) {
+    try {
+      return fsSync.readFileSync(url, "utf8");
+    } catch {
+      // try the next candidate
+    }
+  }
+  throw new Error(
+    "markable: browser IIFE bundle not found. Run `pnpm build` before using the Vite plugin.",
+  );
+}
+
 function clientSource(
   endpoint: string,
   mode: MarkableMode,
@@ -277,8 +298,6 @@ function clientSource(
     issueRepo,
   };
 
-  return `
-import { mountMarkable } from "@f12o/markable/browser";
-mountMarkable(undefined, ${JSON.stringify(options)});
-`;
+  const iife = loadBrowserIife();
+  return `${iife}\nmarkable.mountMarkable(undefined, ${JSON.stringify(options)});`;
 }

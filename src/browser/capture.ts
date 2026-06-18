@@ -1,4 +1,5 @@
-import type { MarkableRect, MarkableTarget } from "../core";
+import type { MarkableTarget } from "../core";
+import { rectObject } from "./rect";
 
 export interface CaptureOptions {
   root?: Document | ShadowRoot;
@@ -14,7 +15,7 @@ export interface CaptureState {
 }
 
 const MARKABLE_SELECTOR =
-  "[data-markable-launcher], [data-markable-panel], [data-markable-highlight], [data-markable-box], [data-markable-list], [data-markable-root]";
+  "[data-markable-host], [data-markable-launcher], [data-markable-panel], [data-markable-highlight], [data-markable-box], [data-markable-list], [data-markable-root]";
 
 export function createCaptureState(options: CaptureOptions = {}): CaptureState {
   const root = options.root ?? document;
@@ -133,11 +134,3 @@ function cssEscape(value: string): string {
   return escape ? escape(value) : value.replace(/[^a-zA-Z0-9_-]/g, "\\$&");
 }
 
-function rectObject(rect: DOMRect): MarkableRect {
-  return {
-    x: rect.x,
-    y: rect.y,
-    width: rect.width,
-    height: rect.height,
-  };
-}

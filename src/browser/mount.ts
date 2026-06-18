@@ -1,6 +1,7 @@
 import { createMarkable, type MarkableAdapter, type MarkableAnnotation, type MarkableContext, type MarkableTarget } from "../core";
 import { buildAnnotationContext } from "./context";
 import { createCaptureState } from "./capture";
+import { rectObject } from "./rect";
 import { getLabels, getMessages } from "./locale";
 import { resolveMountOptions, type MountMarkableOptions, type ResolvedMountOptions } from "./options";
 import { getStyles } from "./styles";
@@ -21,7 +22,7 @@ export function mountMarkable(
   const messages = getMessages(locale);
   const labels = getLabels(messages, mode);
 
-  const target = resolveMountTarget(mountTarget);
+  const { target, autoCreated } = resolveMountTarget(mountTarget);
   const { container, styleElement, captureRoot } = createMountRoot(target, resolved);
 
   const ui = createUI({
@@ -343,6 +344,16 @@ export function mountMarkable(
     true,
   );
 
+  addListener(
+    document,
+    "pointercancel",
+    () => {
+      if (!dragging) return;
+      resetTargeting();
+    },
+    true,
+  );
+
   addListener(ui.panel, "submit", async (event) => {
     event.preventDefault();
     const message = String(new FormData(ui.panel).get("message") || "").trim();
@@ -392,19 +403,25 @@ export function mountMarkable(
       resetTargeting();
       if (container.isConnected) container.remove();
       if (styleElement.isConnected) styleElement.remove();
+      if (autoCreated && target instanceof Element && target.isConnected) {
+        target.remove();
+      }
     },
   };
 }
 
 function resolveMountTarget(
   mountTarget: Element | ShadowRoot | undefined,
-): Element | ShadowRoot {
-  if (mountTarget) return mountTarget;
+): { target: Element | ShadowRoot; autoCreated: boolean } {
+  if (mountTarget) {
+    return { target: mountTarget, autoCreated: false };
+  }
 
   const host = document.createElement("div");
   host.id = "markable-host";
+  host.setAttribute("data-markable-host", "");
   document.body.append(host);
-  return host;
+  return { target: host, autoCreated: true };
 }
 
 function createMountRoot(
@@ -419,11 +436,10 @@ function createMountRoot(
     return { root: mountTarget, container, styleElement, captureRoot: mountTarget };
   }
 
-  const target = mountTarget ?? document.body;
   const styleIsolation = resolved.styleIsolation;
 
   if (styleIsolation === "shadow") {
-    const shadowRoot = target.shadowRoot ?? target.attachShadow({ mode: "open" });
+    const shadowRoot = mountTarget.shadowRoot ?? mountTarget.attachShadow({ mode: "open" });
     const container = document.createElement("div");
     container.setAttribute("data-markable-root", "");
     shadowRoot.appendChild(container);
@@ -433,9 +449,9 @@ function createMountRoot(
 
   const container = document.createElement("div");
   container.setAttribute("data-markable-root", "");
-  target.appendChild(container);
-  const styleElement = injectStyles(target);
-  return { root: target, container, styleElement, captureRoot: document };
+  mountTarget.appendChild(container);
+  const styleElement = injectStyles(mountTarget);
+  return { root: mountTarget, container, styleElement, captureRoot: document };
 }
 
 function injectStyles(root: Element | ShadowRoot): HTMLStyleElement {

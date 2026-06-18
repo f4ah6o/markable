@@ -1,6 +1,6 @@
 import type { IndexHtmlTransformHook, ResolvedConfig } from "vite";
 import { describe, expect, it } from "vitest";
-import { markable } from "./vite";
+import { markable, markableClientScript } from "./vite";
 
 function injectedSource(options: Parameters<typeof markable>[0] = {}): string {
   const plugin = markable(options);
@@ -46,22 +46,20 @@ describe("markable devOnly option", () => {
     });
     const transform = plugin.transformIndexHtml as IndexHtmlTransformHook;
     const output = transform("", { path: "/", filename: "index.html" });
-    expect(JSON.stringify(output)).toContain("/@markable/client");
+    expect(JSON.stringify(output)).toContain("markable.mountMarkable");
   });
 });
 
 describe("markable Vite plugin", () => {
-  it("injects a module script that loads the markable client", () => {
+  it("injects a self-contained script that mounts markable", () => {
     const source = injectedSource();
 
-    expect(source).toContain('"src":"/@markable/client"');
-    expect(source).toContain('"type":"module"');
+    expect(source).toContain('"tag":"script"');
+    expect(source).toContain("markable.mountMarkable");
   });
 
   it("adds Powered by Markable branding by default", () => {
-    const plugin = markable();
-    const load = plugin.load as unknown as (id: string) => string | null;
-    const source = load("/@markable/client") as string;
+    const source = markableClientScript({ mode: "review" });
 
     expect(source).toContain('"poweredBy":true');
     expect(source).toContain('"locale":"en"');
@@ -69,26 +67,20 @@ describe("markable Vite plugin", () => {
   });
 
   it("can opt out of Powered by Markable branding", () => {
-    const plugin = markable({ poweredBy: false });
-    const load = plugin.load as unknown as (id: string) => string | null;
-    const source = load("/@markable/client") as string;
+    const source = markableClientScript({ mode: "review", poweredBy: false });
 
     expect(source).toContain('"poweredBy":false');
   });
 
   it("uses English as the default UI locale", () => {
-    const plugin = markable();
-    const load = plugin.load as unknown as (id: string) => string | null;
-    const source = load("/@markable/client") as string;
+    const source = markableClientScript({ mode: "review" });
 
     expect(source).toContain('"locale":"en"');
-    expect(source).toContain("mountMarkable");
+    expect(source).toContain("markable.mountMarkable");
   });
 
   it("supports a Japanese UI locale", () => {
-    const plugin = markable({ locale: "ja" });
-    const load = plugin.load as unknown as (id: string) => string | null;
-    const source = load("/@markable/client") as string;
+    const source = markableClientScript({ mode: "review", locale: "ja" });
 
     expect(source).toContain('"locale":"ja"');
   });

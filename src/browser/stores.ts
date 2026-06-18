@@ -59,29 +59,50 @@ export function createLocalStorageStore(
   options: LocalStorageStoreOptions = {},
 ): LocalStorageStore {
   const key = options.key ?? "markable.annotations";
+  let queue: Promise<unknown> = Promise.resolve();
+
+  function run<T>(operation: () => Promise<T>): Promise<T> {
+    const task = queue.then(operation);
+    queue = task.catch(() => {
+      // keep the queue alive even if one operation fails
+    });
+    return task;
+  }
+
+  async function loadAnnotations(): Promise<MarkableAnnotation[]> {
+    try {
+      const raw = globalThis.localStorage.getItem(key);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as { annotations?: MarkableAnnotation[] };
+      return parsed.annotations ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  async function persistAnnotations(annotations: MarkableAnnotation[]): Promise<void> {
+    globalThis.localStorage.setItem(key, JSON.stringify({ annotations }));
+  }
 
   return {
     async load() {
-      try {
-        const raw = globalThis.localStorage.getItem(key);
-        if (!raw) return [];
-        const parsed = JSON.parse(raw) as { annotations?: MarkableAnnotation[] };
-        return parsed.annotations ?? [];
-      } catch {
-        return [];
-      }
+      return loadAnnotations();
     },
     async save(annotation) {
-      const annotations = await this.load();
-      annotations.push(annotation);
-      globalThis.localStorage.setItem(key, JSON.stringify({ annotations }));
+      return run(async () => {
+        const annotations = await loadAnnotations();
+        annotations.push(annotation);
+        await persistAnnotations(annotations);
+      });
     },
     async update(id, patch) {
-      const annotations = await this.load();
-      const annotation = annotations.find((item) => item.id === id);
-      if (!annotation) return;
-      Object.assign(annotation, patch);
-      globalThis.localStorage.setItem(key, JSON.stringify({ annotations }));
+      return run(async () => {
+        const annotations = await loadAnnotations();
+        const annotation = annotations.find((item) => item.id === id);
+        if (!annotation) return;
+        Object.assign(annotation, patch);
+        await persistAnnotations(annotations);
+      });
     },
   };
 }
