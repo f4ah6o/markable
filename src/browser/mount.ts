@@ -59,11 +59,18 @@ export function mountMarkable(
     return buildAnnotationContext(base, resolved.extendContext, locale, activeTab);
   };
 
+  // Captured target/context for a queued submission so the values seen when
+  // the user pressed “Submit” are preserved even if the state changes while
+  // the persistence step waits behind the initial load.
+  let capturedSubmit: { target: MarkableTarget; context?: MarkableContext } | null = null;
+
   const adapter: MarkableAdapter = {
     getTarget() {
-      return selectedTarget ?? capture.pageTarget();
+      return capturedSubmit?.target ?? (selectedTarget ?? capture.pageTarget());
     },
-    getContext,
+    getContext() {
+      return capturedSubmit?.context ?? getContext();
+    },
     clearSelection() {
       resetTargeting();
     },
@@ -367,6 +374,14 @@ export function mountMarkable(
     const message = String(new FormData(ui.panel).get("message") || "").trim();
     if (!message) return;
 
+    // Capture the target and context synchronously; only persistence runs
+    // through the serial queue, so UI state mutations during a slow initial
+    // load cannot alter what is submitted.
+    capturedSubmit = {
+      target: selectedTarget ?? capture.pageTarget(),
+      context: getContext(),
+    };
+
     await runSerial(async () => {
       ui.status.textContent = "";
       let annotation: MarkableAnnotation;
@@ -382,13 +397,15 @@ export function mountMarkable(
         annotation = {
           id: resolved.idFactory?.() ?? defaultId(),
           mode,
-          target: selectedTarget ?? capture.pageTarget(),
+          target: capturedSubmit?.target ?? capture.pageTarget(),
           message,
           status: "open",
-          context: getContext(),
+          context: capturedSubmit?.context,
           createdAt: timestamp,
           updatedAt: timestamp,
         };
+      } finally {
+        capturedSubmit = null;
       }
 
       if (submitted) {
