@@ -361,8 +361,10 @@ export function mountMarkable(
 
     ui.status.textContent = "";
     let annotation: MarkableAnnotation;
+    let submitted = false;
     try {
       annotation = await runtime.submit(message);
+      submitted = true;
       ui.status.textContent = mode === "feedback" ? messages.persistedFeedback : messages.persistedReview;
     } catch (error) {
       console.warn("markable: unable to persist annotation", error);
@@ -380,7 +382,16 @@ export function mountMarkable(
       };
     }
 
-    annotations.push(annotation);
+    if (submitted) {
+      try {
+        annotations = await runtime.load();
+      } catch (loadError) {
+        console.warn("markable: unable to reload annotations", loadError);
+        annotations.push(annotation);
+      }
+    } else {
+      annotations.push(annotation);
+    }
     renderList();
     ui.panel.reset();
     closePanel();
@@ -434,6 +445,10 @@ function createMountRoot(
     mountTarget.appendChild(container);
     const styleElement = injectStyles(mountTarget);
     return { root: mountTarget, container, styleElement, captureRoot: mountTarget };
+  }
+
+  if (!mountTarget.hasAttribute("data-markable-host")) {
+    mountTarget.setAttribute("data-markable-host", "");
   }
 
   const styleIsolation = resolved.styleIsolation;
