@@ -77,16 +77,24 @@ export function mountMarkable(
     now: resolved.now,
   });
 
+  // Serialize all asynchronous state updates (initial load + submits) so a
+  // slow initial load can never overwrite mutations made by the user.
+  let stateQueue: Promise<void> = Promise.resolve();
+  function runSerial(task: () => Promise<void>): Promise<void> {
+    const next = stateQueue.then(task, task);
+    stateQueue = next.catch(() => undefined);
+    return next;
+  }
+
   // Load persisted annotations.
-  runtime
-    .load()
-    .then((loaded) => {
-      annotations = loaded;
+  runSerial(async () => {
+    try {
+      annotations = await runtime.load();
       renderList();
-    })
-    .catch((error) => {
+    } catch (error) {
       console.warn("markable: failed to load annotations", error);
-    });
+    }
+  });
 
   makeDraggable(ui.launcher);
   makeDraggable(ui.panel, { handleSelector: "[data-markable-drag-handle]" });
@@ -359,42 +367,44 @@ export function mountMarkable(
     const message = String(new FormData(ui.panel).get("message") || "").trim();
     if (!message) return;
 
-    ui.status.textContent = "";
-    let annotation: MarkableAnnotation;
-    let submitted = false;
-    try {
-      annotation = await runtime.submit(message);
-      submitted = true;
-      ui.status.textContent = mode === "feedback" ? messages.persistedFeedback : messages.persistedReview;
-    } catch (error) {
-      console.warn("markable: unable to persist annotation", error);
-      ui.status.textContent = messages.localOnly;
-      const timestamp = (resolved.now?.() ?? new Date()).toISOString();
-      annotation = {
-        id: resolved.idFactory?.() ?? defaultId(),
-        mode,
-        target: selectedTarget ?? capture.pageTarget(),
-        message,
-        status: "open",
-        context: getContext(),
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      };
-    }
-
-    if (submitted) {
+    await runSerial(async () => {
+      ui.status.textContent = "";
+      let annotation: MarkableAnnotation;
+      let submitted = false;
       try {
-        annotations = await runtime.load();
-      } catch (loadError) {
-        console.warn("markable: unable to reload annotations", loadError);
+        annotation = await runtime.submit(message);
+        submitted = true;
+        ui.status.textContent = mode === "feedback" ? messages.persistedFeedback : messages.persistedReview;
+      } catch (error) {
+        console.warn("markable: unable to persist annotation", error);
+        ui.status.textContent = messages.localOnly;
+        const timestamp = (resolved.now?.() ?? new Date()).toISOString();
+        annotation = {
+          id: resolved.idFactory?.() ?? defaultId(),
+          mode,
+          target: selectedTarget ?? capture.pageTarget(),
+          message,
+          status: "open",
+          context: getContext(),
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        };
+      }
+
+      if (submitted) {
+        try {
+          annotations = await runtime.load();
+        } catch (loadError) {
+          console.warn("markable: unable to reload annotations", loadError);
+          annotations.push(annotation);
+        }
+      } else {
         annotations.push(annotation);
       }
-    } else {
-      annotations.push(annotation);
-    }
-    renderList();
-    ui.panel.reset();
-    closePanel();
+      renderList();
+      ui.panel.reset();
+      closePanel();
+    });
   });
 
   if (ui.issueSubmitButton) {
