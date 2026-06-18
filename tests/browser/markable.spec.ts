@@ -100,6 +100,32 @@ test.describe("targeting", () => {
     );
     await expect(page.locator("[data-markable-list]")).toContainText("bbox");
   });
+
+  test("box selection ending over an element keeps bbox target", async ({
+    page,
+  }) => {
+    await gotoFixture(page);
+    await page.locator("[data-markable-launcher]").click();
+
+    const buttonBox = await page
+      .locator('[data-testid="target-button"]')
+      .boundingBox();
+    if (!buttonBox) throw new Error("target-button not found");
+
+    // End the drag directly over the button to reproduce the bug where the
+    // follow-up click event would overwrite the bbox target with element info.
+    const endX = buttonBox.x + buttonBox.width / 2;
+    const endY = buttonBox.y + buttonBox.height / 2;
+
+    await page.mouse.move(200, 300);
+    await page.mouse.down();
+    await page.mouse.move(endX, endY, { steps: 10 });
+    await page.mouse.up();
+
+    await expect(page.locator("[data-markable-target-summary]")).toContainText(
+      "selected screen area",
+    );
+  });
 });
 
 test.describe("locale rendering", () => {

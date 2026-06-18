@@ -366,6 +366,9 @@ export function mountMarkable(
       dragStart = null;
       if (rect.width > 8 && rect.height > 8) {
         justBoxSelected = true;
+        setTimeout(() => {
+          justBoxSelected = false;
+        }, 0);
         updateSelectedTarget(capture.bboxTarget(rect));
       } else {
         hideOverlay(ui.boxOverlay);
