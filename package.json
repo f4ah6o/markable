@@ -1,6 +1,6 @@
 {
   "name": "@f12o/markable",
-  "version": "2026.6.2",
+  "version": "2026.6.3",
   "description": "Headless interaction layer for marking artifacts with structured feedback and rewrite annotations.",
   "license": "MIT",
   "repository": {
