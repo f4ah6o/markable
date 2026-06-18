@@ -28,7 +28,9 @@ describe("attachMarkable", () => {
   it("preserves indentation for a multiline plugins array", async () => {
     const result = await attachMarkable(fixture("define-config-multiline-plugins.ts"));
     expect(result.status).toBe("changed");
-    expect(result.code).toContain("  plugins: [\n    markable(),\n    react(),\n  ],");
+    expect(result.code.replace(/\r\n/g, "\n")).toContain(
+      "  plugins: [\n    markable(),\n    react(),\n  ],",
+    );
     // unrelated config (server.port) is untouched
     expect(result.code).toContain("server: { port: 3000 },");
   });

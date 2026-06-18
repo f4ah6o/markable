@@ -37,17 +37,25 @@
     "./config": {
       "types": "./dist/config.d.ts",
       "import": "./dist/config.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts src/core.ts src/dom.ts src/vite.ts src/config.ts src/cli.ts --format esm --dts --external web-tree-sitter --external tree-sitter-wasms",
+    "build": "tsup src/index.ts src/core.ts src/dom.ts src/vite.ts src/config.ts src/cli.ts src/browser.ts --format esm --dts --external web-tree-sitter --external tree-sitter-wasms",
     "prepack": "pnpm build",
     "typecheck": "tsc --noEmit",
     "build:demo": "pnpm --filter @f12o/markable-vite-todo-demo build",
-    "build:shadcn-admin": "pnpm --filter @f12o/markable-shadcn-admin-demo build"
+    "build:shadcn-admin": "pnpm --filter @f12o/markable-shadcn-admin-demo build",
+    "test": "vitest run",
+    "test:browser": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.51.0",
     "@types/node": "^22.10.2",
+    "happy-dom": "^17.0.0",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
     "vite": "^6.0.3",
