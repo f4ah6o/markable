@@ -42,6 +42,7 @@ export function mountMarkable(
   let candidateElement: Element | null = null;
   let dragging = false;
   let dragStart: { x: number; y: number } | null = null;
+  let justBoxSelected = false;
   let activeTab: "primary" | "secondary" = "primary";
   let annotations: MarkableAnnotation[] = [];
   let annotationsVersion = 0;
@@ -317,6 +318,12 @@ export function mountMarkable(
     "click",
     (event) => {
       if (!isPanelOpen()) return;
+      if (justBoxSelected) {
+        justBoxSelected = false;
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       const pointer = event as MouseEvent;
       const element = capture.targetAtPoint(pointer.clientX, pointer.clientY);
       if (!element) return;
@@ -358,6 +365,10 @@ export function mountMarkable(
       const rect = rectFromPoints(dragStart, { x: pointer.clientX, y: pointer.clientY });
       dragStart = null;
       if (rect.width > 8 && rect.height > 8) {
+        justBoxSelected = true;
+        setTimeout(() => {
+          justBoxSelected = false;
+        }, 0);
         updateSelectedTarget(capture.bboxTarget(rect));
       } else {
         hideOverlay(ui.boxOverlay);
