@@ -23,7 +23,7 @@ export function mountMarkable(
   const labels = getLabels(messages, mode);
 
   const { target, autoCreated } = resolveMountTarget(mountTarget);
-  const { container, styleElement, captureRoot } = createMountRoot(target, resolved);
+  const { container, styleElement, captureRoot, hostElement, hostMarked } = createMountRoot(target, resolved);
 
   const ui = createUI({
     container,
@@ -414,6 +414,9 @@ export function mountMarkable(
       resetTargeting();
       if (container.isConnected) container.remove();
       if (styleElement.isConnected) styleElement.remove();
+      if (hostMarked && hostElement && hostElement.isConnected) {
+        hostElement.removeAttribute("data-markable-host");
+      }
       if (autoCreated && target instanceof Element && target.isConnected) {
         target.remove();
       }
@@ -430,7 +433,6 @@ function resolveMountTarget(
 
   const host = document.createElement("div");
   host.id = "markable-host";
-  host.setAttribute("data-markable-host", "");
   document.body.append(host);
   return { target: host, autoCreated: true };
 }
@@ -438,20 +440,32 @@ function resolveMountTarget(
 function createMountRoot(
   mountTarget: Element | ShadowRoot,
   resolved: ResolvedMountOptions,
-): { root: Element | ShadowRoot; container: HTMLElement; styleElement: HTMLStyleElement; captureRoot: Document | ShadowRoot } {
+): {
+  root: Element | ShadowRoot;
+  container: HTMLElement;
+  styleElement: HTMLStyleElement;
+  captureRoot: Document | ShadowRoot;
+  hostElement: Element | null;
+  hostMarked: boolean;
+} {
   if (mountTarget instanceof ShadowRoot) {
     const container = document.createElement("div");
     container.setAttribute("data-markable-root", "");
     mountTarget.appendChild(container);
     const styleElement = injectStyles(mountTarget);
-    return { root: mountTarget, container, styleElement, captureRoot: mountTarget };
-  }
-
-  if (!mountTarget.hasAttribute("data-markable-host")) {
-    mountTarget.setAttribute("data-markable-host", "");
+    const hostElement = mountTarget.host ?? null;
+    const hostMarked = hostElement !== null && !hostElement.hasAttribute("data-markable-host");
+    if (hostMarked) {
+      hostElement.setAttribute("data-markable-host", "");
+    }
+    return { root: mountTarget, container, styleElement, captureRoot: mountTarget, hostElement, hostMarked };
   }
 
   const styleIsolation = resolved.styleIsolation;
+  const hostMarked = styleIsolation === "shadow" && !mountTarget.hasAttribute("data-markable-host");
+  if (hostMarked) {
+    mountTarget.setAttribute("data-markable-host", "");
+  }
 
   if (styleIsolation === "shadow") {
     const shadowRoot = mountTarget.shadowRoot ?? mountTarget.attachShadow({ mode: "open" });
@@ -459,14 +473,14 @@ function createMountRoot(
     container.setAttribute("data-markable-root", "");
     shadowRoot.appendChild(container);
     const styleElement = injectStyles(shadowRoot);
-    return { root: shadowRoot, container, styleElement, captureRoot: document };
+    return { root: shadowRoot, container, styleElement, captureRoot: document, hostElement: mountTarget, hostMarked };
   }
 
   const container = document.createElement("div");
   container.setAttribute("data-markable-root", "");
   mountTarget.appendChild(container);
   const styleElement = injectStyles(mountTarget);
-  return { root: mountTarget, container, styleElement, captureRoot: document };
+  return { root: mountTarget, container, styleElement, captureRoot: document, hostElement: null, hostMarked: false };
 }
 
 function injectStyles(root: Element | ShadowRoot): HTMLStyleElement {
