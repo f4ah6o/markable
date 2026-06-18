@@ -46,38 +46,50 @@ describe("markable devOnly option", () => {
     });
     const transform = plugin.transformIndexHtml as IndexHtmlTransformHook;
     const output = transform("", { path: "/", filename: "index.html" });
-    expect(JSON.stringify(output)).toContain("Mark this page");
+    expect(JSON.stringify(output)).toContain("/@markable/client");
   });
 });
 
 describe("markable Vite plugin", () => {
-  it("adds Powered by Markable branding by default", () => {
+  it("injects a module script that loads the markable client", () => {
     const source = injectedSource();
 
-    expect(source).toContain("Powered by");
-    expect(source).toContain("https://github.com/f4ah6o/markable/");
+    expect(source).toContain('"src":"/@markable/client"');
+    expect(source).toContain('"type":"module"');
+  });
+
+  it("adds Powered by Markable branding by default", () => {
+    const plugin = markable();
+    const load = plugin.load as unknown as (id: string) => string | null;
+    const source = load("/@markable/client") as string;
+
+    expect(source).toContain('"poweredBy":true');
+    expect(source).toContain('"locale":"en"');
+    expect(source).toContain('"mode":"review"');
   });
 
   it("can opt out of Powered by Markable branding", () => {
-    const source = injectedSource({ poweredBy: false });
+    const plugin = markable({ poweredBy: false });
+    const load = plugin.load as unknown as (id: string) => string | null;
+    const source = load("/@markable/client") as string;
 
-    expect(source).not.toContain("Powered by");
-    expect(source).not.toContain("data-markable-powered-by");
+    expect(source).toContain('"poweredBy":false');
   });
 
   it("uses English as the default UI locale", () => {
-    const source = injectedSource();
+    const plugin = markable();
+    const load = plugin.load as unknown as (id: string) => string | null;
+    const source = load("/@markable/client") as string;
 
-    expect(source).toContain('const locale = \\"en\\";');
-    expect(source).toContain("Mark this page");
-    expect(source).toContain("markableLocale: locale");
+    expect(source).toContain('"locale":"en"');
+    expect(source).toContain("mountMarkable");
   });
 
   it("supports a Japanese UI locale", () => {
-    const source = injectedSource({ locale: "ja" });
+    const plugin = markable({ locale: "ja" });
+    const load = plugin.load as unknown as (id: string) => string | null;
+    const source = load("/@markable/client") as string;
 
-    expect(source).toContain('const locale = \\"ja\\";');
-    expect(source).toContain("このページをマーク");
-    expect(source).toContain("ローカルに記録しました。永続化するにはエンドポイントを設定してください。");
+    expect(source).toContain('"locale":"ja"');
   });
 });
