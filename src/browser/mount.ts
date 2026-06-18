@@ -44,6 +44,7 @@ export function mountMarkable(
   let dragStart: { x: number; y: number } | null = null;
   let activeTab: "primary" | "secondary" = "primary";
   let annotations: MarkableAnnotation[] = [];
+  let annotationsVersion = 0;
 
   const getContext = (): MarkableContext => {
     const base: MarkableContext = {
@@ -84,8 +85,10 @@ export function mountMarkable(
     now: resolved.now,
   });
 
-  // Serialize all asynchronous state updates (initial load + submits) so a
-  // slow initial load can never overwrite mutations made by the user.
+  // Serialize only submission-side persistence. The initial load runs
+  // independently so a hung load never blocks the user from submitting.
+  // A monotonic version prevents a late-arriving initial load result from
+  // overwriting state that has already been mutated by a submission.
   let stateQueue: Promise<void> = Promise.resolve();
   function runSerial(task: () => Promise<void>): Promise<void> {
     const next = stateQueue.then(task, task);
@@ -94,14 +97,18 @@ export function mountMarkable(
   }
 
   // Load persisted annotations.
-  runSerial(async () => {
-    try {
-      annotations = await runtime.load();
-      renderList();
-    } catch (error) {
+  runtime
+    .load()
+    .then((loaded) => {
+      if (annotationsVersion === 0) {
+        annotations = loaded;
+        annotationsVersion += 1;
+        renderList();
+      }
+    })
+    .catch((error) => {
       console.warn("markable: failed to load annotations", error);
-    }
-  });
+    });
 
   makeDraggable(ui.launcher);
   makeDraggable(ui.panel, { handleSelector: "[data-markable-drag-handle]" });
@@ -377,12 +384,11 @@ export function mountMarkable(
     // Capture the target and context synchronously; only persistence runs
     // through the serial queue, so UI state mutations during a slow initial
     // load cannot alter what is submitted.
-    capturedSubmit = {
-      target: selectedTarget ?? capture.pageTarget(),
-      context: getContext(),
-    };
+    const submitTarget = selectedTarget ?? capture.pageTarget();
+    const submitContext = getContext();
 
     await runSerial(async () => {
+      capturedSubmit = { target: submitTarget, context: submitContext };
       ui.status.textContent = "";
       let annotation: MarkableAnnotation;
       let submitted = false;
@@ -397,10 +403,10 @@ export function mountMarkable(
         annotation = {
           id: resolved.idFactory?.() ?? defaultId(),
           mode,
-          target: capturedSubmit?.target ?? capture.pageTarget(),
+          target: submitTarget,
           message,
           status: "open",
-          context: capturedSubmit?.context,
+          context: submitContext,
           createdAt: timestamp,
           updatedAt: timestamp,
         };
@@ -418,6 +424,7 @@ export function mountMarkable(
       } else {
         annotations.push(annotation);
       }
+      annotationsVersion += 1;
       renderList();
       ui.panel.reset();
       closePanel();
