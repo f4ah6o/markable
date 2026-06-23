@@ -42,7 +42,7 @@ export function createCaptureState(options: CaptureOptions = {}): CaptureState {
 
     return element.closest(
       "button, a, input, textarea, select, label, [role], [aria-label], li, article, section, form",
-    );
+    ) ?? element;
   }
 
   function targetAtPoint(clientX: number, clientY: number): Element | null {
