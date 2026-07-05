@@ -8,6 +8,7 @@ export interface CaptureOptions {
 
 export interface CaptureState {
   targetAtPoint(clientX: number, clientY: number): Element | null;
+  practicalTargetAtPoint(clientX: number, clientY: number): Element | null;
   elementTarget(element: Element): MarkableTarget;
   bboxTarget(rect: DOMRect): MarkableTarget;
   pageTarget(): MarkableTarget;
@@ -16,6 +17,9 @@ export interface CaptureState {
 
 const MARKABLE_SELECTOR =
   "[data-markable-host], [data-markable-launcher], [data-markable-panel], [data-markable-highlight], [data-markable-box], [data-markable-list], [data-markable-root]";
+
+const PRACTICAL_SELECTOR =
+  "button, a, input, textarea, select, label, [role], [aria-label], li, article, section, form";
 
 export function createCaptureState(options: CaptureOptions = {}): CaptureState {
   const root = options.root ?? document;
@@ -34,20 +38,35 @@ export function createCaptureState(options: CaptureOptions = {}): CaptureState {
     return exclude.some((node) => node === element || node.contains(element));
   }
 
-  function practicalElementFor(element: Element | null): Element | null {
+  function strictPracticalElementFor(element: Element | null): Element | null {
     if (!element || isExcluded(element)) return null;
 
     const marked = element.closest("[data-markable-id]") as Element | null;
     if (marked && !isExcluded(marked)) return marked;
 
-    return element.closest(
-      "button, a, input, textarea, select, label, [role], [aria-label], li, article, section, form",
-    ) ?? element;
+    return element.closest(PRACTICAL_SELECTOR);
+  }
+
+  function practicalElementFor(element: Element | null): Element | null {
+    if (!element || isExcluded(element)) return null;
+    // Fall back to the raw element so clicking anywhere can still attach a
+    // mark, even when no interactive or semantic ancestor exists.
+    return strictPracticalElementFor(element) ?? element;
   }
 
   function targetAtPoint(clientX: number, clientY: number): Element | null {
     const element = root.elementFromPoint(clientX, clientY);
     return practicalElementFor(element);
+  }
+
+  /**
+   * Like `targetAtPoint` but without the generic-element fallback. Box-drag
+   * selection starts only where this returns `null`, so dragging over plain
+   * containers keeps working while clicks may still target them.
+   */
+  function practicalTargetAtPoint(clientX: number, clientY: number): Element | null {
+    const element = root.elementFromPoint(clientX, clientY);
+    return strictPracticalElementFor(element);
   }
 
   function elementTarget(element: Element): MarkableTarget {
@@ -90,6 +109,7 @@ export function createCaptureState(options: CaptureOptions = {}): CaptureState {
 
   return {
     targetAtPoint,
+    practicalTargetAtPoint,
     elementTarget,
     bboxTarget,
     pageTarget,

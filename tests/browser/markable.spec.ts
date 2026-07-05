@@ -43,6 +43,32 @@ test.describe("launcher and panel lifecycle", () => {
     await expect(page.locator("[data-markable-panel]")).toBeHidden();
     await expect(page.locator("[data-markable-launcher]")).toBeVisible();
   });
+
+  test("closes the panel with the Escape key", async ({ page }) => {
+    await gotoFixture(page);
+
+    await page.locator("[data-markable-launcher]").click();
+    await expect(page.locator("[data-markable-panel]")).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(page.locator("[data-markable-panel]")).toBeHidden();
+    await expect(page.locator("[data-markable-launcher]")).toBeVisible();
+  });
+
+  test("exposes dialog and status semantics", async ({ page }) => {
+    await gotoFixture(page);
+
+    await expect(page.locator("[data-markable-launcher]")).toHaveAttribute(
+      "aria-haspopup",
+      "dialog",
+    );
+    await page.locator("[data-markable-launcher]").click();
+    await expect(page.locator("[data-markable-panel]")).toHaveAttribute("role", "dialog");
+    await expect(page.locator("[data-markable-status]")).toHaveAttribute(
+      "aria-live",
+      "polite",
+    );
+  });
 });
 
 test.describe("targeting", () => {

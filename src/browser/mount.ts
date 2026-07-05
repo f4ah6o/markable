@@ -1,4 +1,4 @@
-import { createMarkable, type MarkableAdapter, type MarkableAnnotation, type MarkableContext, type MarkableTarget } from "../core";
+import { createAnnotationId, createMarkable, type MarkableAdapter, type MarkableAnnotation, type MarkableContext, type MarkableTarget } from "../core";
 import { buildAnnotationContext } from "./context";
 import { createCaptureState } from "./capture";
 import { rectObject } from "./rect";
@@ -144,6 +144,7 @@ export function mountMarkable(
     ui.panel.style.display = "none";
     ui.launcher.style.display = "block";
     resetTargeting();
+    ui.launcher.focus();
   }
 
   function resetTargeting(): void {
@@ -159,6 +160,7 @@ export function mountMarkable(
   function setTab(tab: "primary" | "secondary"): void {
     activeTab = tab;
     ui.input.placeholder = tab === "secondary" ? labels.secondaryPlaceholder : labels.placeholder;
+    ui.input.setAttribute("aria-label", ui.input.placeholder);
     for (const button of ui.tabButtons) {
       const active = button.getAttribute("data-markable-tab") === tab;
       button.setAttribute("aria-selected", String(active));
@@ -266,6 +268,17 @@ export function mountMarkable(
   addListener(ui.closeButton, "click", closePanel);
   addListener(ui.cancelButton, "click", closePanel);
 
+  addListener(
+    document,
+    "keydown",
+    (event) => {
+      if ((event as KeyboardEvent).key !== "Escape" || !isPanelOpen()) return;
+      event.stopPropagation();
+      closePanel();
+    },
+    true,
+  );
+
   for (const button of ui.tabButtons) {
     addListener(button, "click", () => {
       const tab = button.getAttribute("data-markable-tab") as "primary" | "secondary";
@@ -342,7 +355,10 @@ export function mountMarkable(
       if (!isPanelOpen()) return;
       const pointer = event as PointerEvent;
       if (capture.isExcluded(pointer.target as Element)) return;
-      const element = capture.targetAtPoint(pointer.clientX, pointer.clientY);
+      // Start a box drag only where no interactive or semantic element sits
+      // under the pointer; generic containers stay draggable-over so the
+      // rectangular selection remains reachable.
+      const element = capture.practicalTargetAtPoint(pointer.clientX, pointer.clientY);
       if (element) return;
       dragging = true;
       dragStart = { x: pointer.clientX, y: pointer.clientY };
@@ -387,8 +403,11 @@ export function mountMarkable(
     true,
   );
 
+  let submitting = false;
+
   addListener(ui.panel, "submit", async (event) => {
     event.preventDefault();
+    if (submitting) return;
     const message = String(new FormData(ui.panel).get("message") || "").trim();
     if (!message) return;
 
@@ -397,6 +416,10 @@ export function mountMarkable(
     // load cannot alter what is submitted.
     const submitTarget = selectedTarget ?? capture.pageTarget();
     const submitContext = getContext();
+
+    submitting = true;
+    ui.submitButton.disabled = true;
+    ui.panel.setAttribute("aria-busy", "true");
 
     await runSerial(async () => {
       capturedSubmit = { target: submitTarget, context: submitContext };
@@ -412,7 +435,7 @@ export function mountMarkable(
         ui.status.textContent = messages.localOnly;
         const timestamp = (resolved.now?.() ?? new Date()).toISOString();
         annotation = {
-          id: resolved.idFactory?.() ?? defaultId(),
+          id: resolved.idFactory?.() ?? createAnnotationId(),
           mode,
           target: submitTarget,
           message,
@@ -439,6 +462,10 @@ export function mountMarkable(
       renderList();
       ui.panel.reset();
       closePanel();
+    }).finally(() => {
+      submitting = false;
+      ui.submitButton.disabled = false;
+      ui.panel.removeAttribute("aria-busy");
     });
   });
 
@@ -533,11 +560,6 @@ function injectStyles(root: Element | ShadowRoot): HTMLStyleElement {
   style.textContent = getStyles();
   root.prepend(style);
   return style;
-}
-
-function defaultId(): string {
-  const random = Math.random().toString(36).slice(2, 10);
-  return `mark-${random}`;
 }
 
 function makeDraggable(element: HTMLElement, options: { handleSelector?: string } = {}): void {
