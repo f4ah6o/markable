@@ -39,12 +39,16 @@ export function createUI(options: CreateUIOptions): UIElements {
   launcher.lang = locale;
   launcher.setAttribute("data-markable-launcher", "");
   launcher.setAttribute("data-markable-mode", mode);
+  launcher.setAttribute("aria-haspopup", "dialog");
   launcher.textContent = labels.launcher;
 
   const panel = document.createElement("form");
   panel.lang = locale;
   panel.setAttribute("data-markable-panel", "");
   panel.setAttribute("data-markable-mode", mode);
+  panel.setAttribute("role", "dialog");
+  panel.setAttribute("aria-modal", "false");
+  panel.setAttribute("aria-label", labels.panelTitle);
   panel.noValidate = true;
 
   const issueSubmitButton = issueRepo ? document.createElement("button") : null;
@@ -71,12 +75,12 @@ export function createUI(options: CreateUIOptions): UIElements {
       <button type="button" data-markable-tab="secondary" role="tab" aria-selected="false">${escapeHtml(labels.tabSecondary)}</button>
     </div>
     <p data-markable-target-summary>${escapeHtml(labels.helper)}</p>
-    <textarea name="message" required data-markable-input></textarea>
+    <textarea name="message" required maxlength="10000" data-markable-input aria-label="${escapeHtml(labels.placeholder)}"></textarea>
     <div data-markable-footer>
       <button type="button" data-markable-cancel>${escapeHtml(messages.cancel)}</button>
       <div data-markable-actions></div>
     </div>
-    <p data-markable-status></p>
+    <p data-markable-status role="status" aria-live="polite"></p>
   `;
 
   if (poweredByFooter) {

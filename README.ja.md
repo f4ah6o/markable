@@ -19,6 +19,7 @@ npm install @f12o/markable
 import { createMarkable } from "@f12o/markable/core";
 import { createDomAdapter } from "@f12o/markable/dom";
 import { markable } from "@f12o/markable/vite";
+import { normalizeAnnotation } from "@f12o/markable/annotations";
 ```
 
 ## Vite での使い方
@@ -103,6 +104,33 @@ markable({ locale: "ja" }); // 日本語
 - ボタン、composer のタイトル、最近のマーク一覧の見出しはドラッグ可能です。UI が選択したい要素に重なった場合は、任意の場所へ移動できます。
 
 開発サーバーでは、投稿された注釈が `.markable/comments.json` に保存されます。静的な GitHub Pages 配信では POST 先がないため、外部エンドポイントを設定しない限りセッション内の表示に留まります。
+
+## セキュリティとデータの扱い
+
+開発サーバーのコメントエンドポイントは、受け取った内容をディスクへ書き込む前に検証します。
+
+- リクエストボディは 256 KB を上限とし、`application/json` かつ JSON として解析できる必要があります(413 / 415 / 400 を返します)。
+- 各注釈はスキーマに照らして検証します。message・mode・target は必須で、未知のフィールドは取り除き、文字列長には上限を設けます(不正な場合は 422)。
+- 書き込みは直列化し、一時ファイルへの書き込み後にリネームするため、同時送信で `comments.json` が壊れたり欠落したりしません。既知の ID による再送は重複させずに無視します。
+- レスポンスには `Cache-Control: no-store` と `X-Content-Type-Options: nosniff` を付与します。
+
+同じ検証ロジックは、プラットフォーム非依存のサブパスエクスポートとして本番エンドポイント(Cloudflare Workers、Express など)からも利用できます。
+
+```ts
+import { normalizeAnnotation } from "@f12o/markable/annotations";
+
+const result = normalizeAnnotation(await request.json());
+if (!result.ok) return new Response(result.error, { status: 422 });
+await store.save(result.annotation);
+```
+
+収集するコンテキストはパネルに表示される範囲に限られます。URL、ページタイトル、ビューポートサイズ、ユーザーエージェント、アクティブなタブ、UI の言語、任意で選択した要素または矩形です。Cookie、ストレージ、フォームの入力値、キー入力は読み取りません。本番のフィードバックエンドポイントにおける認証・認可・レート制限はホストアプリケーションの責務です。開発用エンドポイントはローカル開発専用であり、`devOnly: true` を指定すると本番ビルドからエンドポイントと注入 UI の両方を完全に除外できます。
+
+脆弱性の報告方法は [SECURITY.md](./SECURITY.md) を参照してください。
+
+## アクセシビリティ
+
+注入されるパネルはダイアログとして通知され、送信ステータスはライブリージョンで読み上げられます。`Escape` キーでパネルを閉じるとフォーカスは起動ボタンへ戻ります。保存処理の実行中は二重送信を防止します。
 
 ## デモ
 

@@ -5,10 +5,15 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Plugin } from "vite";
+import { normalizeAnnotation } from "./annotations";
 import type { MarkableConfig, MarkableLocale } from "./config";
 import type { MarkableAnnotation, MarkableMode } from "./core";
 
 export type { MarkableLocale };
+export { normalizeAnnotation } from "./annotations";
+
+/** Upper bound for a single POSTed annotation payload. */
+const MAX_BODY_BYTES = 256 * 1024;
 
 export interface MarkableViteOptions extends MarkableConfig {}
 
@@ -78,28 +83,97 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
 
     configureServer(server) {
       if (disabled) return;
-      server.middlewares.use(resolved.endpoint, async (req, res) => {
+
+      // Serialize read-modify-write cycles so concurrent POSTs cannot drop
+      // each other's annotations.
+      let writeQueue: Promise<unknown> = Promise.resolve();
+      const enqueueWrite = <T>(task: () => Promise<T>): Promise<T> => {
+        const next = writeQueue.then(task, task);
+        writeQueue = next.catch(() => undefined);
+        return next;
+      };
+
+      const handleRequest = async (
+        req: MiddlewareRequest,
+        res: MiddlewareResponse,
+      ): Promise<void> => {
         const file = path.resolve(root, resolved.commentsFile);
+        res.setHeader("Cache-Control", "no-store");
+        res.setHeader("X-Content-Type-Options", "nosniff");
 
         if (req.method === "GET") {
           const annotations = await readAnnotations(file);
-          sendJson(res, { annotations });
+          sendJson(res, 200, { annotations });
           return;
         }
 
         if (req.method === "POST") {
-          const body = await readBody(req);
-          const incoming = JSON.parse(body) as MarkableAnnotation;
-          const annotations = await readAnnotations(file);
-          annotations.push(incoming);
-          await fs.mkdir(path.dirname(file), { recursive: true });
-          await fs.writeFile(file, JSON.stringify({ annotations }, null, 2));
-          sendJson(res, { ok: true, annotation: incoming });
+          const contentType = String(req.headers?.["content-type"] ?? "");
+          if (!contentType.toLowerCase().includes("application/json")) {
+            sendJson(res, 415, { ok: false, error: "Content-Type must be application/json" });
+            return;
+          }
+
+          let body: string;
+          try {
+            body = await readBody(req, MAX_BODY_BYTES);
+          } catch (error) {
+            if (error instanceof PayloadTooLargeError) {
+              sendJson(res, 413, { ok: false, error: "annotation payload too large" });
+              return;
+            }
+            throw error;
+          }
+
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(body);
+          } catch {
+            sendJson(res, 400, { ok: false, error: "request body is not valid JSON" });
+            return;
+          }
+
+          const result = normalizeAnnotation(parsed);
+          if (!result.ok) {
+            sendJson(res, 422, { ok: false, error: result.error });
+            return;
+          }
+
+          const annotation = result.annotation;
+          await enqueueWrite(async () => {
+            const annotations = await readAnnotations(file);
+            // Ignore retried submissions that already made it to disk.
+            if (!annotations.some((existing) => existing.id === annotation.id)) {
+              annotations.push(annotation);
+              await writeAnnotations(file, annotations);
+            }
+          });
+          sendJson(res, 200, { ok: true, annotation });
           return;
         }
 
         res.statusCode = 405;
+        res.setHeader("Allow", "GET, POST");
         res.end("Method Not Allowed");
+      };
+
+      server.middlewares.use(resolved.endpoint, (req, res, next) => {
+        // Connect strips the mount prefix, so only the endpoint itself (with
+        // or without a query string) is handled here; sub-paths fall through.
+        const pathname = (req.url ?? "/").split("?", 1)[0];
+        if (pathname !== "/" && pathname !== "") {
+          next();
+          return;
+        }
+
+        handleRequest(req as MiddlewareRequest, res as MiddlewareResponse).catch((error) => {
+          server.config.logger.error(
+            `markable: comments endpoint failed: ${error instanceof Error ? error.message : error}`,
+          );
+          if (!res.writableEnded) {
+            sendJson(res as MiddlewareResponse, 500, { ok: false, error: "internal error" });
+          }
+        });
       });
     },
 
@@ -216,34 +290,85 @@ function resolveMode(mode: MarkableViteOptions["mode"], viteMode: string): Marka
   return viteMode === "production" ? "feedback" : "review";
 }
 
+interface MiddlewareRequest extends NodeJS.ReadableStream {
+  method?: string;
+  url?: string;
+  headers?: Record<string, string | string[] | undefined>;
+  destroy?(error?: Error): void;
+}
+
+interface MiddlewareResponse extends NodeJS.WritableStream {
+  setHeader(name: string, value: string): void;
+  statusCode?: number;
+  writableEnded?: boolean;
+}
+
 async function readAnnotations(file: string): Promise<MarkableAnnotation[]> {
   try {
     const raw = await fs.readFile(file, "utf8");
     const parsed = JSON.parse(raw) as { annotations?: MarkableAnnotation[] };
-    return parsed.annotations ?? [];
+    return Array.isArray(parsed.annotations) ? parsed.annotations : [];
   } catch {
     return [];
   }
 }
 
-function readBody(req: NodeJS.ReadableStream): Promise<string> {
+/**
+ * Persist annotations with a write-to-temp-then-rename cycle so a crash or a
+ * concurrent reader never observes a truncated comments file.
+ */
+async function writeAnnotations(file: string, annotations: MarkableAnnotation[]): Promise<void> {
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    await fs.writeFile(tmp, JSON.stringify({ annotations }, null, 2));
+    await fs.rename(tmp, file);
+  } catch (error) {
+    await fs.rm(tmp, { force: true }).catch(() => undefined);
+    throw error;
+  }
+}
+
+class PayloadTooLargeError extends Error {
+  constructor() {
+    super("payload too large");
+    this.name = "PayloadTooLargeError";
+  }
+}
+
+function readBody(req: MiddlewareRequest, limit: number): Promise<string> {
   return new Promise((resolve, reject) => {
-    let body = "";
-    req.on("data", (chunk) => {
-      body += chunk;
+    const chunks: Buffer[] = [];
+    let size = 0;
+    let done = false;
+
+    req.on("data", (chunk: Buffer | string) => {
+      if (done) return;
+      const buffer = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+      size += buffer.length;
+      if (size > limit) {
+        done = true;
+        reject(new PayloadTooLargeError());
+        req.destroy?.();
+        return;
+      }
+      chunks.push(buffer);
     });
-    req.on("end", () => resolve(body));
-    req.on("error", reject);
+    req.on("end", () => {
+      if (done) return;
+      done = true;
+      resolve(Buffer.concat(chunks).toString("utf8"));
+    });
+    req.on("error", (error) => {
+      if (done) return;
+      done = true;
+      reject(error);
+    });
   });
 }
 
-function sendJson(
-  res: NodeJS.WritableStream & {
-    setHeader(name: string, value: string): void;
-    statusCode?: number;
-  },
-  value: unknown,
-) {
+function sendJson(res: MiddlewareResponse, statusCode: number, value: unknown) {
+  res.statusCode = statusCode;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.end(JSON.stringify(value));
 }

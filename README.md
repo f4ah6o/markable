@@ -23,6 +23,7 @@ Subpath exports are used for integrations:
 import { createMarkable } from "@f12o/markable/core";
 import { createDomAdapter } from "@f12o/markable/dom";
 import { markable } from "@f12o/markable/vite";
+import { normalizeAnnotation } from "@f12o/markable/annotations";
 ```
 
 ## Vite usage
@@ -129,9 +130,54 @@ artifact
 
 `markable` does not own your UI. The core is headless. DOM and Vite integrations provide capture and injection only.
 
+## Security and data handling
+
+The dev-server comments endpoint validates everything it receives before
+touching disk:
+
+- Request bodies are rejected over 256 KB, must be `application/json`, and must
+  parse as JSON (413 / 415 / 400 responses).
+- Each annotation is checked against the schema — message, mode, and target are
+  required, unknown fields are stripped, and string sizes are capped — before it
+  is persisted (422 on failure).
+- Writes are serialized and atomic (write-to-temp, then rename), so concurrent
+  submissions cannot corrupt or drop entries in `comments.json`, and retried
+  submissions with a known ID are ignored instead of duplicated.
+- Responses carry `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`.
+
+The same validation is available to custom production endpoints (Cloudflare
+Workers, Express, and so on) through a platform-neutral subpath export:
+
+```ts
+import { normalizeAnnotation } from "@f12o/markable/annotations";
+
+const result = normalizeAnnotation(await request.json());
+if (!result.ok) return new Response(result.error, { status: 422 });
+await store.save(result.annotation);
+```
+
+Captured context is limited to what the panel shows: URL, page title, viewport
+size, user agent, active tab intent, UI locale, and the optional selected
+element or rectangle. Markable does not read cookies, storage, form values, or
+keystrokes. Authentication, authorization, and rate limiting for production
+feedback endpoints remain the host application's responsibility — the dev
+endpoint is intended for local development only, and `devOnly: true` keeps it
+(and the injected UI) out of production builds entirely.
+
+See [SECURITY.md](./SECURITY.md) for how to report vulnerabilities.
+
+## Accessibility
+
+The injected panel is announced as a dialog, submission status updates are
+exposed through a polite live region, and `Escape` closes the panel and returns
+focus to the launcher. Submissions are guarded against double activation while
+a save is in flight.
+
 ## Current status
 
-Initial scaffold.
+The core annotation flow — element, box, and page targeting, review and
+feedback modes, English/Japanese locales, dev-server persistence, and the
+dev-only CLI — is stable and covered by unit and browser tests in CI.
 
 ## Inspiration
 

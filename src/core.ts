@@ -129,7 +129,18 @@ export function createMarkable(options: CreateMarkableOptions): MarkableRuntime 
   };
 }
 
-function defaultIdFactory(): string {
+/**
+ * Generate a collision-resistant annotation ID. Prefers `crypto.randomUUID`
+ * (available in modern browsers, workers, and Node.js) and falls back to a
+ * time-seeded random suffix on older runtimes.
+ */
+export function createAnnotationId(): string {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  if (uuid) return `mark-${uuid}`;
   const random = Math.random().toString(36).slice(2, 10);
-  return `mark-${random}`;
+  return `mark-${Date.now().toString(36)}-${random}`;
+}
+
+function defaultIdFactory(): string {
+  return createAnnotationId();
 }

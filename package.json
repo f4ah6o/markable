@@ -1,12 +1,28 @@
 {
   "name": "@f12o/markable",
-  "version": "2026.6.3",
+  "version": "2026.7.0",
   "description": "Headless interaction layer for marking artifacts with structured feedback and rewrite annotations.",
+  "keywords": [
+    "feedback",
+    "annotation",
+    "review",
+    "overlay",
+    "vite-plugin",
+    "headless"
+  ],
   "license": "MIT",
+  "homepage": "https://github.com/f4ah6o/markable#readme",
+  "bugs": {
+    "url": "https://github.com/f4ah6o/markable/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/f4ah6o/markable.git"
   },
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false,
   "files": [
     "dist"
   ],
@@ -26,6 +42,10 @@
       "types": "./dist/core.d.ts",
       "import": "./dist/core.js"
     },
+    "./annotations": {
+      "types": "./dist/annotations.d.ts",
+      "import": "./dist/annotations.js"
+    },
     "./dom": {
       "types": "./dist/dom.d.ts",
       "import": "./dist/dom.js"
@@ -44,7 +64,7 @@
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts src/core.ts src/dom.ts src/vite.ts src/config.ts src/cli.ts src/browser.ts --format esm --dts --external web-tree-sitter --external tree-sitter-wasms && tsup src/browser.ts --format iife --globalName markable --outDir dist",
+    "build": "tsup src/index.ts src/core.ts src/annotations.ts src/dom.ts src/vite.ts src/config.ts src/cli.ts src/browser.ts --format esm --dts --external web-tree-sitter --external tree-sitter-wasms && tsup src/browser.ts --format iife --globalName markable --outDir dist",
     "prepack": "pnpm build",
     "typecheck": "tsc --noEmit",
     "build:demo": "pnpm --filter @f12o/markable-vite-todo-demo build",
