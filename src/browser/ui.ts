@@ -44,6 +44,7 @@ export function createUI(options: CreateUIOptions): UIElements {
 
   const panel = document.createElement("form");
   panel.lang = locale;
+  panel.style.display = "none";
   panel.setAttribute("data-markable-panel", "");
   panel.setAttribute("data-markable-mode", mode);
   panel.setAttribute("role", "dialog");
