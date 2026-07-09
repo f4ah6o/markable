@@ -1,5 +1,5 @@
 import type { MarkableContext, MarkableMode, MarkableStore } from "../core";
-import type { MarkableLocale } from "../config";
+import type { MarkableCaptureOptions, MarkableLocale } from "../config";
 import { createHttpStore, createMemoryStore } from "./stores";
 
 export interface MountMarkableOptions {
@@ -49,6 +49,11 @@ export interface MountMarkableOptions {
    */
   captureExclude?: string | Element[];
   /**
+   * Per-field overrides for the context captured on element targets. Unset
+   * fields use mode-aware defaults (see `resolveCaptureOptions`).
+   */
+  capture?: MarkableCaptureOptions;
+  /**
    * Additional context merged into every annotation context.
    */
   extendContext?: MarkableContext | (() => MarkableContext);
@@ -70,6 +75,7 @@ export interface ResolvedMountOptions {
   poweredBy: boolean;
   styleIsolation: "shadow" | "none";
   captureExclude: string | Element[] | undefined;
+  capture: MarkableCaptureOptions | undefined;
   extendContext: MarkableContext | (() => MarkableContext) | undefined;
   idFactory: (() => string) | undefined;
   now: (() => Date) | undefined;
@@ -85,6 +91,7 @@ export function resolveMountOptions(options: MountMarkableOptions): ResolvedMoun
     poweredBy: options.poweredBy ?? true,
     styleIsolation: options.styleIsolation ?? "shadow",
     captureExclude: options.captureExclude,
+    capture: options.capture,
     extendContext: options.extendContext,
     idFactory: options.idFactory,
     now: options.now,

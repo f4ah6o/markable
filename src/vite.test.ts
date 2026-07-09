@@ -84,4 +84,14 @@ describe("markable Vite plugin", () => {
 
     expect(source).toContain('"locale":"ja"');
   });
+
+  it("serializes capture options into the injected script", () => {
+    const source = injectedSource({ capture: { outerHtml: false, componentHints: true } });
+
+    expect(source).toContain('\\"capture\\":{\\"outerHtml\\":false,\\"componentHints\\":true}');
+  });
+
+  it("omits capture options when unset", () => {
+    expect(markableClientScript({ mode: "review" })).not.toContain('"capture"');
+  });
 });

@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Element targets now capture agent-oriented context in `target.locator`:
+  `ancestors` (up to 6 levels), whitelisted `attributes`, `nearestHeading` and
+  `landmark` region info, a sanitized `outerHtml` snippet, and best-effort
+  `componentHints` (React/Vue/Svelte component names plus `file:line` from dev
+  builds). Everything is size-capped and the locator self-caps at 7 KiB before
+  submission so the endpoint's 8 KiB limit is never hit.
+- `capture` option on the Vite plugin, `markable.config.ts`, and
+  `mountMarkable` to override the per-field capture defaults. Review mode
+  captures everything; feedback (production) mode keeps `outerHtml` and
+  `componentHints` off unless opted in, and `value`/secret-looking attributes
+  are always stripped.
+- `markable comments` CLI command: prints persisted annotations as
+  agent-ready markdown (or `--json`), with `--status`, `--mode`, `--id`,
+  `--limit`, and `--file` filters.
+- Playwright config honors `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` for sandboxes
+  with a pre-installed Chromium.
+
 ## 2026.7.0
 
 ### Fixed

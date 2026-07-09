@@ -35,7 +35,12 @@ export function mountMarkable(
     poweredBy: resolved.poweredBy,
   });
 
-  const capture = createCaptureState({ root: captureRoot, exclude: resolved.captureExclude });
+  const capture = createCaptureState({
+    root: captureRoot,
+    exclude: resolved.captureExclude,
+    mode,
+    capture: resolved.capture,
+  });
 
   let selectedTarget: MarkableTarget | null = null;
   let selectedElement: Element | null = null;

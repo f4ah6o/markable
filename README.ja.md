@@ -44,6 +44,47 @@ export default defineConfig({
 
 `mode: "auto"` は Vite の開発時に review モード、本番ビルド時に feedback モードへ解決されます。
 
+## 注釈に含まれる情報(コーディングエージェント向け)
+
+要素を対象にした注釈には、コーディングエージェントが「どの画面のどの要素か」を特定し、対応するソースコードへたどり着くための構造化された情報が含まれます。
+
+| locator フィールド | 内容 | 既定で収集されるモード |
+| --- | --- | --- |
+| `tag`, `id`, `classes`, `role`, `ariaLabel` | 選択された要素の基本情報 | review・feedback |
+| `selector` | CSS パス(例: `main > form > button:nth-of-type(1)`) | review・feedback |
+| `textSnippet` | 表示テキストの先頭 160 文字 | review・feedback |
+| `ancestors` | 祖先要素のチェーン(tag/id/classes/role、近い順に最大 6 件) | review・feedback |
+| `attributes` | ホワイトリスト属性(`href`、`type`、`name`、`placeholder`、`alt`、`title`、`for`、`aria-*`、`data-*`) | review・feedback |
+| `nearestHeading`, `landmark` | 直前の見出しテキストと囲んでいるランドマーク領域 | review・feedback |
+| `outerHtml` | サニタイズ済み HTML スニペット(約 2 KB。script 除去、`value`/`style`/秘密情報らしき属性を削除、password/hidden input は縮約、textarea の内容はクリア) | review のみ |
+| `componentHints` | フレームワークのコンポーネント名と、dev ビルドでは `file:line`(React fiber の `_debugSource`、Vue の `__name`/`__file`、Svelte の `__svelte_meta`) | review のみ |
+
+既定値はモードに応じて決まり、`capture` オプションでフィールドごとに上書きできます(Vite プラグイン、`markable.config.ts`、`mountMarkable` で同じ形)。
+
+```ts
+markable({
+  capture: {
+    outerHtml: true,       // feedback(本番)モードで opt-in
+    componentHints: false, // どのモードでも opt-out 可能
+  },
+});
+```
+
+ブラウザは送信前に locator を 7 KiB 以内へ自主的に切り詰めるため(最初に `outerHtml` を落とし、selector の切り詰めは最終手段)、エンドポイント側の 8 KiB 上限で拒否されることはありません。
+
+### 注釈の読み取り: `markable comments`
+
+保存された注釈は、JSON を直接解析しなくても markdown として読み取れます。
+
+```bash
+markable comments                  # エージェント向け markdown で全件表示
+markable comments --status open    # ステータスで絞り込み(カンマ区切り)
+markable comments --mode feedback --limit 5
+markable comments --json           # 同じフィルタで raw JSON を出力
+```
+
+対象ファイルは `markable.config.*` の `commentsFile`(未設定時は `.markable/comments.json`)が既定で、`--file` で本番フィードバックストアからエクスポートしたファイルも指定できます。
+
 ## CLI: 開発時のみのセットアップ
 
 Markable を開発者向けのレビュー用途だけで使う場合は、同梱の CLI で開発時専用の
@@ -76,8 +117,9 @@ export default defineMarkableConfig({
 利用できます。
 
 ```bash
-markable doctor   # 現在の組み込み状況を表示
-markable remove   # CLI が行った編集を取り消す（未変更の場合のみ）
+markable doctor    # 現在の組み込み状況を表示
+markable remove    # CLI が行った編集を取り消す（未変更の場合のみ）
+markable comments  # 保存された注釈をエージェント向け markdown で表示
 ```
 
 `devOnly` はプラグインに直接指定することもでき（`markable({ devOnly: true })`）、
@@ -124,7 +166,7 @@ if (!result.ok) return new Response(result.error, { status: 422 });
 await store.save(result.annotation);
 ```
 
-収集するコンテキストはパネルに表示される範囲に限られます。URL、ページタイトル、ビューポートサイズ、ユーザーエージェント、アクティブなタブ、UI の言語、任意で選択した要素または矩形です。Cookie、ストレージ、フォームの入力値、キー入力は読み取りません。本番のフィードバックエンドポイントにおける認証・認可・レート制限はホストアプリケーションの責務です。開発用エンドポイントはローカル開発専用であり、`devOnly: true` を指定すると本番ビルドからエンドポイントと注入 UI の両方を完全に除外できます。
+収集するコンテキストはページが構造的に示している範囲に限られます。URL、ページタイトル、ビューポートサイズ、ユーザーエージェント、アクティブなタブ、UI の言語、そして選択した要素についてはタグ・セレクタ・クラス・テキスト断片・祖先チェーン・ホワイトリスト属性・近くの見出し/ランドマークのテキストです(上記「注釈に含まれる情報」参照)。Cookie、ストレージ、フォームの入力値、キー入力は読み取りません。`value` 属性と秘密情報らしき名前の属性はシリアライズ前に常に取り除き、password/hidden input は構造属性のみに縮約します。サニタイズ済みの `outerHtml` と(dev ビルドのソースファイルパスを含みうる)`componentHints` は review モード限定で、feedback モードで使うには `capture` オプションでの明示的な有効化が必要です。本番のフィードバックエンドポイントにおける認証・認可・レート制限はホストアプリケーションの責務です。開発用エンドポイントはローカル開発専用であり、`devOnly: true` を指定すると本番ビルドからエンドポイントと注入 UI の両方を完全に除外できます。
 
 脆弱性の報告方法は [SECURITY.md](./SECURITY.md) を参照してください。
 

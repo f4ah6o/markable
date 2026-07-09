@@ -9,6 +9,9 @@ import {
   hasMarkable,
   TreeSitterUnavailableError,
 } from "./cli/edit-vite-config";
+import { filterAnnotations, formatAnnotationsMarkdown } from "./cli/comments";
+import type { MarkableAnnotation, MarkableMode } from "./core";
+import { loadMarkableConfig } from "./vite";
 import {
   ensureDevDependency,
   ensureGitignoreEntry,
@@ -32,11 +35,20 @@ Usage:
   markable init      Configure Markable for development-only use in this project
   markable doctor    Report the current Markable integration status
   markable remove    Remove the CLI-owned Markable integration
+  markable comments  List captured annotations as agent-ready markdown
 
 Options:
   --cwd <dir>        Run against another directory (default: current directory)
   -h, --help         Show this help
   -v, --version      Show the CLI version
+
+Options for \`markable comments\`:
+  --json             Print the filtered annotations as raw JSON
+  --status <s>       Filter by status (comma-separated, e.g. open,needs_user_reply)
+  --mode <m>         Filter by mode: review or feedback
+  --id <id>          Show a single annotation by id
+  --limit <n>        Show only the most recent n annotations
+  --file <path>      Comments file (default: markable.config commentsFile or .markable/comments.json)
 `;
 
 interface Cli {
@@ -60,6 +72,14 @@ async function main(argv: string[]): Promise<number> {
   const args = argv.slice(2);
   const cwdFlag = takeFlag(args, "--cwd");
   const root = path.resolve(cwdFlag ?? process.cwd());
+  const commentsFlags = {
+    json: takeBooleanFlag(args, "--json"),
+    status: takeFlag(args, "--status"),
+    mode: takeFlag(args, "--mode"),
+    id: takeFlag(args, "--id"),
+    limit: takeFlag(args, "--limit"),
+    file: takeFlag(args, "--file"),
+  };
   const command = args.find((arg) => !arg.startsWith("-"));
 
   if (args.includes("-h") || args.includes("--help") || command === "help") {
@@ -81,6 +101,8 @@ async function main(argv: string[]): Promise<number> {
       return runDoctor(root);
     case "remove":
       return runRemove(root);
+    case "comments":
+      return runComments(root, commentsFlags);
     default:
       cli.error(`Unknown command: ${command}\n`);
       cli.log(HELP);
@@ -94,6 +116,13 @@ function takeFlag(args: string[], flag: string): string | undefined {
   const value = args[idx + 1];
   args.splice(idx, value !== undefined ? 2 : 1);
   return value;
+}
+
+function takeBooleanFlag(args: string[], flag: string): boolean {
+  const idx = args.indexOf(flag);
+  if (idx === -1) return false;
+  args.splice(idx, 1);
+  return true;
 }
 
 async function exists(file: string): Promise<boolean> {
@@ -323,6 +352,69 @@ async function runDoctor(root: string): Promise<number> {
 
   const healthy = hasDep && Boolean(viteConfig) && wired && hasConfig && ignored && !drift;
   return healthy ? 0 : 1;
+}
+
+interface CommentsFlags {
+  json: boolean;
+  status: string | undefined;
+  mode: string | undefined;
+  id: string | undefined;
+  limit: string | undefined;
+  file: string | undefined;
+}
+
+async function runComments(root: string, flags: CommentsFlags): Promise<number> {
+  if (flags.mode && flags.mode !== "review" && flags.mode !== "feedback") {
+    cli.error(`Invalid --mode: ${flags.mode} (expected review or feedback)`);
+    return 1;
+  }
+  const limit = flags.limit !== undefined ? Number(flags.limit) : undefined;
+  if (limit !== undefined && (!Number.isInteger(limit) || limit < 0)) {
+    cli.error(`Invalid --limit: ${flags.limit} (expected a non-negative integer)`);
+    return 1;
+  }
+
+  const file = flags.file
+    ? path.resolve(root, flags.file)
+    : path.resolve(root, (await loadMarkableConfig(root)).commentsFile ?? ".markable/comments.json");
+
+  if (!(await exists(file))) {
+    cli.log("No annotations found.");
+    return 0;
+  }
+
+  let annotations: MarkableAnnotation[];
+  try {
+    const parsed = JSON.parse(await fs.readFile(file, "utf8")) as {
+      annotations?: MarkableAnnotation[];
+    };
+    annotations = Array.isArray(parsed.annotations) ? parsed.annotations : [];
+  } catch (error) {
+    cli.error(
+      `Could not parse ${file}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return 1;
+  }
+
+  const filtered = filterAnnotations(annotations, {
+    status: flags.status?.split(",").map((status) => status.trim()).filter(Boolean),
+    mode: flags.mode as MarkableMode | undefined,
+    id: flags.id,
+    limit,
+  });
+
+  if (flags.json) {
+    cli.log(JSON.stringify({ annotations: filtered }, null, 2));
+    return 0;
+  }
+
+  if (filtered.length === 0) {
+    cli.log("No annotations found.");
+    return 0;
+  }
+
+  cli.log(formatAnnotationsMarkdown(filtered));
+  return 0;
 }
 
 async function runRemove(root: string): Promise<number> {

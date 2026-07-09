@@ -25,6 +25,20 @@ async function gotoFixture(page: Page): Promise<void> {
   await page.waitForSelector("[data-markable-launcher]", { state: "visible" });
 }
 
+interface PersistedAnnotation {
+  mode: string;
+  target: { kind: string; locator: Record<string, unknown> };
+}
+
+async function readPersistedAnnotations(): Promise<PersistedAnnotation[]> {
+  try {
+    const raw = await fs.readFile(commentsFile, "utf8");
+    return (JSON.parse(raw) as { annotations: PersistedAnnotation[] }).annotations;
+  } catch {
+    return [];
+  }
+}
+
 test.describe.configure({ mode: "serial" });
 
 test.beforeEach(async () => {
@@ -109,9 +123,9 @@ test.describe("targeting", () => {
     await page.locator("[data-markable-launcher]").click();
 
     // Drag over an empty area of the page to create a box selection.
-    await page.mouse.move(120, 120);
+    await page.mouse.move(150, 400);
     await page.mouse.down();
-    await page.mouse.move(320, 320, { steps: 10 });
+    await page.mouse.move(350, 600, { steps: 10 });
     await page.mouse.up();
 
     await expect(page.locator("[data-markable-target-summary]")).toContainText(
@@ -143,7 +157,7 @@ test.describe("targeting", () => {
     const endX = buttonBox.x + buttonBox.width / 2;
     const endY = buttonBox.y + buttonBox.height / 2;
 
-    await page.mouse.move(200, 300);
+    await page.mouse.move(200, 450);
     await page.mouse.down();
     await page.mouse.move(endX, endY, { steps: 10 });
     await page.mouse.up();
@@ -151,6 +165,60 @@ test.describe("targeting", () => {
     await expect(page.locator("[data-markable-target-summary]")).toContainText(
       "selected screen area",
     );
+  });
+});
+
+test.describe("captured element context", () => {
+  test("persists rich locator fields in review mode", async ({ page }) => {
+    await gotoFixture(page);
+    await page.locator("[data-markable-launcher]").click();
+    await page.locator('[data-testid="target-button"]').click();
+    await page.locator("[data-markable-input]").fill("Rich capture");
+    await page.locator("[data-markable-submit]").click();
+    await expect(page.locator("[data-markable-list]")).toContainText("Rich capture");
+
+    await expect.poll(readPersistedAnnotations).toHaveLength(1);
+    const [annotation] = await readPersistedAnnotations();
+    const locator = annotation.target.locator;
+
+    expect(annotation.target.kind).toBe("dom_element");
+    expect(locator.tag).toBe("button");
+    expect(locator.selector).toBeTruthy();
+    expect(locator.ancestors).toEqual([{ tag: "section" }, { tag: "main" }]);
+    expect(locator.attributes).toEqual({ type: "button", "data-testid": "target-button" });
+    expect(locator.nearestHeading).toEqual({ tag: "h2", text: "Demo Heading" });
+    expect(locator.landmark).toEqual({ tag: "section", label: "Demo section" });
+    expect(locator.componentHints).toEqual({
+      framework: "react",
+      components: ["DemoButton"],
+      source: { file: "src/Demo.tsx", line: 7, column: 3 },
+    });
+    expect(String(locator.outerHtml)).toContain("Target Button");
+  });
+
+  test("omits outerHtml and componentHints by default in feedback mode", async ({ page }) => {
+    await gotoFixture(page);
+    await page.waitForFunction(() => typeof window.remountMarkable === "function");
+    await page.evaluate(() => {
+      window.remountMarkable({ mode: "feedback" });
+    });
+
+    await page.locator("[data-markable-launcher]").click();
+    await page.locator('[data-testid="target-button"]').click();
+    await page.locator("[data-markable-input]").fill("Feedback capture");
+    await page.locator("[data-markable-submit]").click();
+    await expect(page.locator("[data-markable-list]")).toContainText("Feedback capture");
+
+    await expect.poll(readPersistedAnnotations).toHaveLength(1);
+    const [annotation] = await readPersistedAnnotations();
+    const locator = annotation.target.locator;
+
+    expect(annotation.mode).toBe("feedback");
+    expect(locator.outerHtml).toBeUndefined();
+    expect(locator.componentHints).toBeUndefined();
+    expect(locator.ancestors).toEqual([{ tag: "section" }, { tag: "main" }]);
+    expect(locator.attributes).toEqual({ type: "button", "data-testid": "target-button" });
+    expect(locator.nearestHeading).toEqual({ tag: "h2", text: "Demo Heading" });
   });
 });
 
