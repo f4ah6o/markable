@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  MAX_LOCATOR_BYTES,
   MAX_MESSAGE_LENGTH,
   MAX_QUOTE_LENGTH,
   normalizeAnnotation,
@@ -87,6 +88,42 @@ describe("normalizeAnnotation", () => {
     if (!result.ok) return;
     expect(result.annotation.message).toHaveLength(MAX_MESSAGE_LENGTH);
     expect(result.annotation.target.quote).toHaveLength(MAX_QUOTE_LENGTH);
+  });
+
+  it("passes rich element locators through unchanged", () => {
+    const locator = {
+      tag: "button",
+      selector: "main > form > button",
+      textSnippet: "Pay now",
+      ancestors: [{ tag: "form" }, { tag: "section", id: "checkout" }],
+      attributes: { type: "submit", "data-testid": "pay" },
+      outerHtml: '<button type="submit">Pay now</button>',
+      nearestHeading: { tag: "h2", text: "Checkout" },
+      landmark: { tag: "section", label: "Checkout" },
+      componentHints: {
+        framework: "react",
+        components: ["PayButton"],
+        source: { file: "src/Pay.tsx", line: 12 },
+      },
+    };
+    const result = normalizeAnnotation({
+      ...validInput(),
+      target: { kind: "dom_element", locator },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.annotation.target.locator).toEqual(locator);
+  });
+
+  it("still rejects locators over the byte cap", () => {
+    const result = normalizeAnnotation({
+      ...validInput(),
+      target: {
+        kind: "dom_element",
+        locator: { outerHtml: "x".repeat(MAX_LOCATOR_BYTES + 1) },
+      },
+    });
+    expect(result.ok).toBe(false);
   });
 
   it("generates an id and timestamps when missing or malformed", () => {

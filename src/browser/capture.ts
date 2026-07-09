@@ -1,10 +1,34 @@
-import type { MarkableTarget } from "../core";
+import type { MarkableCaptureOptions } from "../config";
+import type { MarkableMode, MarkableTarget } from "../core";
+import {
+  collectAncestors,
+  collectAttributes,
+  enclosingLandmark,
+  fitLocatorBudget,
+  nearestHeading,
+  sanitizedOuterHtml,
+} from "./capture-details";
+import { resolveCaptureOptions } from "./capture-options";
+import { collectComponentHints } from "./component-hints";
 import { rectObject } from "./rect";
 
 export interface CaptureOptions {
   root?: Document | ShadowRoot;
   exclude?: string | Element[];
+  /** Interaction mode; drives the capture defaults. Defaults to `"review"`. */
+  mode?: MarkableMode;
+  /** Per-field overrides for what is captured on element targets. */
+  capture?: MarkableCaptureOptions;
 }
+
+/**
+ * Self-imposed byte budget for a serialized locator. The dev-server endpoint
+ * rejects locators over `MAX_LOCATOR_BYTES` (8 KiB) in `../annotations`
+ * instead of truncating them, so the browser keeps 1 KiB of headroom below
+ * that. Kept as a local constant so the browser IIFE does not pull in the
+ * annotations module; a unit test asserts the ordering between the two.
+ */
+export const LOCATOR_BUDGET_BYTES = 7 * 1024;
 
 export interface CaptureState {
   targetAtPoint(clientX: number, clientY: number): Element | null;
@@ -23,6 +47,7 @@ const PRACTICAL_SELECTOR =
 
 export function createCaptureState(options: CaptureOptions = {}): CaptureState {
   const root = options.root ?? document;
+  const captureOptions = resolveCaptureOptions(options.mode ?? "review", options.capture);
 
   function isExcluded(element: Element | null): boolean {
     if (!element) return true;
@@ -73,21 +98,32 @@ export function createCaptureState(options: CaptureOptions = {}): CaptureState {
     const rect = element.getBoundingClientRect();
     const text = (element as HTMLElement).innerText ?? element.textContent ?? "";
 
+    const locator: Record<string, unknown> = {
+      tag: element.tagName.toLowerCase(),
+      selector: selectorFor(element),
+      dataMarkableId: element.getAttribute("data-markable-id") || undefined,
+      id: element.id || undefined,
+      classes:
+        element.classList.length > 0
+          ? Array.from(element.classList).slice(0, 8)
+          : undefined,
+      ariaLabel: element.getAttribute("aria-label") || undefined,
+      role: element.getAttribute("role") || undefined,
+      textSnippet: text.trim().replace(/\s+/g, " ").slice(0, 160) || undefined,
+    };
+
+    if (captureOptions.ancestors) locator.ancestors = collectAncestors(element);
+    if (captureOptions.attributes) locator.attributes = collectAttributes(element);
+    if (captureOptions.outerHtml) locator.outerHtml = sanitizedOuterHtml(element);
+    if (captureOptions.landmarks) {
+      locator.nearestHeading = nearestHeading(element, root);
+      locator.landmark = enclosingLandmark(element);
+    }
+    if (captureOptions.componentHints) locator.componentHints = collectComponentHints(element);
+
     return {
       kind: "dom_element",
-      locator: {
-        tag: element.tagName.toLowerCase(),
-        selector: selectorFor(element),
-        dataMarkableId: element.getAttribute("data-markable-id") || undefined,
-        id: element.id || undefined,
-        classes:
-          element.classList.length > 0
-            ? Array.from(element.classList).slice(0, 8)
-            : undefined,
-        ariaLabel: element.getAttribute("aria-label") || undefined,
-        role: element.getAttribute("role") || undefined,
-        textSnippet: text.trim().replace(/\s+/g, " ").slice(0, 160) || undefined,
-      },
+      locator: fitLocatorBudget(locator, LOCATOR_BUDGET_BYTES),
       rect: rectObject(rect),
     };
   }

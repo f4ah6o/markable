@@ -54,4 +54,12 @@ describe("resolveMountOptions", () => {
     expect(resolved.extendContext).toBe(extendContext);
     expect(resolved.captureExclude).toBe(exclude);
   });
+
+  it("passes capture options through untouched", () => {
+    const capture = { outerHtml: false, ancestors: true };
+    const resolved = resolveMountOptions({ capture });
+
+    expect(resolved.capture).toBe(capture);
+    expect(resolveMountOptions({}).capture).toBeUndefined();
+  });
 });

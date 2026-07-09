@@ -6,7 +6,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Plugin } from "vite";
 import { normalizeAnnotation } from "./annotations";
-import type { MarkableConfig, MarkableLocale } from "./config";
+import type { MarkableCaptureOptions, MarkableConfig, MarkableLocale } from "./config";
 import type { MarkableAnnotation, MarkableMode } from "./core";
 
 export type { MarkableLocale };
@@ -25,6 +25,7 @@ interface ResolvedOptions {
   locale: MarkableLocale;
   issueRepo: string | undefined;
   devOnly: boolean;
+  capture: MarkableCaptureOptions | undefined;
 }
 
 function resolveOptions(options: MarkableConfig): ResolvedOptions {
@@ -36,6 +37,7 @@ function resolveOptions(options: MarkableConfig): ResolvedOptions {
     locale: options.locale ?? "en",
     issueRepo: options.issueRepo,
     devOnly: options.devOnly ?? false,
+    capture: options.capture,
   };
 }
 
@@ -75,6 +77,7 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
             resolved.poweredBy,
             resolved.locale,
             resolved.issueRepo,
+            resolved.capture,
           ),
           injectTo: "body",
         },
@@ -190,6 +193,7 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
         resolved.poweredBy,
         resolved.locale,
         resolved.issueRepo,
+        resolved.capture,
       );
     },
   };
@@ -379,6 +383,7 @@ export interface MarkableClientScriptOptions {
   poweredBy?: boolean;
   locale?: MarkableLocale;
   issueRepo?: string;
+  capture?: MarkableCaptureOptions;
 }
 
 export function markableClientScript(options: MarkableClientScriptOptions): string {
@@ -388,6 +393,7 @@ export function markableClientScript(options: MarkableClientScriptOptions): stri
     options.poweredBy ?? true,
     options.locale ?? "en",
     options.issueRepo,
+    options.capture,
   );
 }
 
@@ -414,6 +420,7 @@ function clientSource(
   poweredBy: boolean,
   locale: MarkableLocale,
   issueRepo: string | undefined,
+  capture: MarkableCaptureOptions | undefined,
 ): string {
   const options = {
     endpoint,
@@ -421,6 +428,7 @@ function clientSource(
     poweredBy,
     locale,
     issueRepo,
+    capture,
   };
 
   const iife = loadBrowserIife();

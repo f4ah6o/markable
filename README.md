@@ -79,8 +79,9 @@ With `devOnly: true`, Markable runs under `vite dev` and is excluded from
 available:
 
 ```bash
-markable doctor   # report the current integration status
-markable remove   # undo the CLI-owned edits (only when still unmodified)
+markable doctor    # report the current integration status
+markable remove    # undo the CLI-owned edits (only when still unmodified)
+markable comments  # list captured annotations as agent-ready markdown
 ```
 
 The `devOnly` option is also available directly on the plugin
@@ -130,6 +131,77 @@ artifact
 
 `markable` does not own your UI. The core is headless. DOM and Vite integrations provide capture and injection only.
 
+## What annotations contain (for coding agents)
+
+Each element-target annotation carries enough structured context for a coding
+agent to identify the screen, locate the corresponding source code, and act on
+instructions like "fix this button on the settings screen":
+
+| Locator field | Content | Captured by default in |
+| --- | --- | --- |
+| `tag`, `id`, `classes`, `role`, `ariaLabel` | Basic identity of the picked element | review & feedback |
+| `selector` | CSS path, e.g. `main > form > button:nth-of-type(1)` | review & feedback |
+| `textSnippet` | Visible text, first 160 characters | review & feedback |
+| `ancestors` | Up to 6 ancestors (tag/id/classes/role), nearest first | review & feedback |
+| `attributes` | Whitelisted attributes (`href`, `type`, `name`, `placeholder`, `alt`, `title`, `for`, `aria-*`, `data-*`) | review & feedback |
+| `nearestHeading`, `landmark` | Closest preceding heading text and enclosing landmark region (nav/main/section[aria-label]/…) | review & feedback |
+| `outerHtml` | Sanitized HTML snippet, ~2 KB — scripts removed, `value`/`style`/secret-looking attributes stripped, password and hidden inputs reduced, textarea content cleared | review only |
+| `componentHints` | Framework component names and, in dev builds, `file:line` (React fiber `_debugSource`, Vue `__name`/`__file`, Svelte `__svelte_meta`) | review only |
+
+The annotation context additionally records URL, page title, viewport, user
+agent, active tab intent, and UI locale, and page/box targets carry the URL and
+selected rectangle as before.
+
+Defaults are mode-aware and overridable per field through the `capture` option
+(same shape on the Vite plugin, `markable.config.ts`, and `mountMarkable`):
+
+```ts
+markable({
+  capture: {
+    outerHtml: true,       // opt in for feedback (production) mode
+    componentHints: false, // or opt out anywhere
+  },
+});
+```
+
+The browser self-caps the serialized locator at 7 KiB before submitting
+(dropping `outerHtml` first and truncating the selector only as a last
+resort), staying under the endpoint's 8 KiB locator limit. Custom production
+endpoints using `normalizeAnnotation` accept the new fields without changes.
+
+### Reading annotations: `markable comments`
+
+Agents (and humans) can read persisted annotations as markdown without parsing
+JSON by hand:
+
+```bash
+markable comments                  # agent-ready markdown, all annotations
+markable comments --status open    # comma-separated status filter
+markable comments --mode feedback --limit 5
+markable comments --json           # raw JSON with the same filters
+```
+
+Each markdown section contains the message plus every captured locator field:
+
+```text
+## 1. mark-6f2… [open] (review) — 2026-07-09T00:00:00.000Z
+
+Make this button primary
+
+- url: https://app.example/settings
+- target: dom_element `button` — selector `main > form > button`
+- ancestors: main > form
+- region: heading "Settings" (h2) · landmark form
+- component: SaveButton (src/Settings.tsx:30) [react]
+- attributes: type="submit" data-testid="save"
+- text: "Save"
+- rect: 100×40 @ (10, 20) · viewport 1280×800
+```
+
+The comments file defaults to `commentsFile` from `markable.config.*`
+(`.markable/comments.json` when unset); use `--file` to point at annotations
+exported from a production feedback store.
+
 ## Security and data handling
 
 The dev-server comments endpoint validates everything it receives before
@@ -156,10 +228,17 @@ if (!result.ok) return new Response(result.error, { status: 422 });
 await store.save(result.annotation);
 ```
 
-Captured context is limited to what the panel shows: URL, page title, viewport
-size, user agent, active tab intent, UI locale, and the optional selected
-element or rectangle. Markable does not read cookies, storage, form values, or
-keystrokes. Authentication, authorization, and rate limiting for production
+Captured context is limited to what the page structurally shows: URL, page
+title, viewport size, user agent, active tab intent, UI locale, and — for a
+selected element — its tag/selector/classes/text snippet, ancestor chain,
+whitelisted attributes, and nearby heading/landmark text (see "What annotations
+contain" above). Markable does not read cookies, storage, form values, or
+keystrokes: `value` attributes and secret-looking attribute names are always
+stripped before serialization, and password/hidden inputs are reduced to their
+structural attributes. Sanitized `outerHtml` snippets and framework
+`componentHints` (which can expose source file paths from dev builds) are
+captured in review mode only unless explicitly enabled for feedback mode via
+the `capture` option. Authentication, authorization, and rate limiting for production
 feedback endpoints remain the host application's responsibility — the dev
 endpoint is intended for local development only, and `devOnly: true` keeps it
 (and the injected UI) out of production builds entirely.
