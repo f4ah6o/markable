@@ -35,13 +35,19 @@ jobs:
         run: pnpm --filter @f12o/markable-vite-todo-demo build
       - name: Build shadcn-admin demo
         run: pnpm --filter @f12o/markable-shadcn-admin-demo build
+      - name: Build Vuestic Admin demo
+        run: pnpm --filter @f12o/markable-vuestic-admin-demo build
+      - name: Build Solid Admin demo
+        run: pnpm --filter @f12o/markable-solid-admin-demo build
       - name: Prepare Pages artifact
         shell: bash
         run: |
           rm -rf pages-dist
-          mkdir -p pages-dist/vue-todo pages-dist/shadcn-admin
+          mkdir -p pages-dist/vue-todo pages-dist/shadcn-admin pages-dist/vuestic-admin pages-dist/solid-admin
           cp -R examples/vite-todo/dist/. pages-dist/vue-todo/
           cp -R examples/shadcn-admin/dist/. pages-dist/shadcn-admin/
+          cp -R examples/vuestic-admin/dist/. pages-dist/vuestic-admin/
+          cp -R examples/solid-admin/packages/demo/dist/. pages-dist/solid-admin/
           cp pages-dist/shadcn-admin/index.html pages-dist/404.html
           node scripts/build-pages-index.mjs
       - name: Verify Pages artifact
@@ -51,6 +57,8 @@ jobs:
           test -f pages-dist/index.html
           test -f pages-dist/vue-todo/index.html
           test -f pages-dist/shadcn-admin/index.html
+          test -f pages-dist/vuestic-admin/index.html
+          test -f pages-dist/solid-admin/index.html
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact

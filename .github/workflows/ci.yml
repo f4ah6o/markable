@@ -40,5 +40,7 @@ jobs:
         run: |
           pnpm --filter @f12o/markable-vite-todo-demo build
           pnpm --filter @f12o/markable-shadcn-admin-demo build
+          pnpm --filter @f12o/markable-vuestic-admin-demo build
+          pnpm --filter @f12o/markable-solid-admin-demo build
       - name: Verify Pages index generation
         run: node scripts/build-pages-index.mjs
