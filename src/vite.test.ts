@@ -94,4 +94,19 @@ describe("markable Vite plugin", () => {
   it("omits capture options when unset", () => {
     expect(markableClientScript({ mode: "review" })).not.toContain('"capture"');
   });
+
+  it("serializes the issueRepo shorthand into the injected script", () => {
+    const source = markableClientScript({ mode: "review", issueRepo: "f4ah6o/markable" });
+
+    expect(source).toContain('"issueRepo":"f4ah6o/markable"');
+  });
+
+  it("serializes a generic issueTarget into the injected script", () => {
+    const source = markableClientScript({
+      mode: "review",
+      issueTarget: { url: "https://example.com/new", titleParam: "summary" },
+    });
+
+    expect(source).toContain('"issueTarget":{"url":"https://example.com/new","titleParam":"summary"}');
+  });
 });

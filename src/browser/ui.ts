@@ -1,5 +1,6 @@
 import type { MarkableMode } from "../core";
 import type { LocaleMessages, ModeLabels } from "./locale";
+import type { ResolvedIssueTarget } from "./options";
 
 export interface UIElements {
   root: HTMLElement;
@@ -25,12 +26,12 @@ export interface CreateUIOptions {
   locale: string;
   messages: LocaleMessages;
   labels: ModeLabels;
-  issueRepo?: string;
+  issueTarget?: ResolvedIssueTarget;
   poweredBy?: boolean;
 }
 
 export function createUI(options: CreateUIOptions): UIElements {
-  const { container, mode, locale, messages, labels, issueRepo, poweredBy } = options;
+  const { container, mode, locale, messages, labels, issueTarget, poweredBy } = options;
 
   const root = container;
 
@@ -52,11 +53,11 @@ export function createUI(options: CreateUIOptions): UIElements {
   panel.setAttribute("aria-label", labels.panelTitle);
   panel.noValidate = true;
 
-  const issueSubmitButton = issueRepo ? document.createElement("button") : null;
+  const issueSubmitButton = issueTarget ? document.createElement("button") : null;
   if (issueSubmitButton) {
     issueSubmitButton.type = "button";
     issueSubmitButton.setAttribute("data-markable-issue-submit", "");
-    issueSubmitButton.textContent = messages.issueSubmitLabel;
+    issueSubmitButton.textContent = issueTarget?.label ?? messages.issueSubmitLabel;
   }
 
   const poweredByFooter = poweredBy ? document.createElement("footer") : null;

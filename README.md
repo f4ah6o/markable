@@ -46,6 +46,33 @@ export default defineConfig({
 });
 ```
 
+## Submit Issue link
+
+When an issue target is configured, the composer shows a **Submit Issue** button
+that turns the current mark into a prefilled form URL (title from the first line,
+body with the page URL, target summary, and viewport) and opens it in a new tab.
+This is generic: it can point at any repository or any form, not just GitHub.
+
+```ts
+// GitHub shorthand — expands to https://github.com/<owner/repo>/issues/new
+markable({ issueRepo: "f4ah6o/markable" });
+
+// Generic target — any repository, tracker, or form
+markable({
+  issueTarget: {
+    url: "https://example.com/feedback/new",
+    titleParam: "summary", // query param for the title (default "title")
+    bodyParam: "details",  // query param for the body (default "body")
+    params: { source: "markable" }, // extra static query params
+    label: "Report",       // button label (defaults to the localized string)
+  },
+});
+```
+
+`issueTarget` takes precedence over `issueRepo` when both are set. Both options are
+also accepted by `mountMarkable`, `markable.config.ts`, and `markableClientScript`.
+Set `titleParam` or `bodyParam` to an empty string to omit that field from the URL.
+
 ## CLI: dev-only setup
 
 For projects that use Markable only as a developer review tool, the bundled CLI

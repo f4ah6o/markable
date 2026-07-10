@@ -31,7 +31,7 @@ export function mountMarkable(
     locale,
     messages,
     labels,
-    issueRepo: resolved.issueRepo,
+    issueTarget: resolved.issueTarget,
     poweredBy: resolved.poweredBy,
   });
 
@@ -474,12 +474,18 @@ export function mountMarkable(
     });
   });
 
-  if (ui.issueSubmitButton) {
+  if (ui.issueSubmitButton && resolved.issueTarget) {
+    const issueTarget = resolved.issueTarget;
     addListener(ui.issueSubmitButton, "click", () => {
       const message = String(new FormData(ui.panel).get("message") || "").trim();
       const rawTitle = message.split("\n")[0]?.slice(0, 72) || messages.issueTitleDefault;
-      const url = `https://github.com/${resolved.issueRepo}/issues/new?title=${encodeURIComponent(rawTitle)}&body=${encodeURIComponent(buildIssueBody(message))}`;
-      globalThis.open(url, "_blank", "noopener,noreferrer");
+      const url = new URL(issueTarget.url);
+      if (issueTarget.titleParam) url.searchParams.set(issueTarget.titleParam, rawTitle);
+      if (issueTarget.bodyParam) url.searchParams.set(issueTarget.bodyParam, buildIssueBody(message));
+      for (const [key, value] of Object.entries(issueTarget.params ?? {})) {
+        url.searchParams.set(key, value);
+      }
+      globalThis.open(url.toString(), "_blank", "noopener,noreferrer");
     });
   }
 

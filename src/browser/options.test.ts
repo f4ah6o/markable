@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
-import { resolveMountOptions } from "./options";
+import { resolveIssueTarget, resolveMountOptions } from "./options";
 import { createHttpStore, createMemoryStore } from "./stores";
 
 describe("resolveMountOptions", () => {
@@ -11,7 +11,7 @@ describe("resolveMountOptions", () => {
     expect(resolved.locale).toBe("en");
     expect(resolved.poweredBy).toBe(true);
     expect(resolved.styleIsolation).toBe("shadow");
-    expect(resolved.issueRepo).toBeUndefined();
+    expect(resolved.issueTarget).toBeUndefined();
   });
 
   it("falls back to a memory store when no store or endpoint is provided", () => {
@@ -61,5 +61,58 @@ describe("resolveMountOptions", () => {
 
     expect(resolved.capture).toBe(capture);
     expect(resolveMountOptions({}).capture).toBeUndefined();
+  });
+
+  it("expands the issueRepo shorthand into a GitHub issue target", () => {
+    const resolved = resolveMountOptions({ issueRepo: "f4ah6o/markable" });
+
+    expect(resolved.issueTarget).toEqual({
+      url: "https://github.com/f4ah6o/markable/issues/new",
+      titleParam: "title",
+      bodyParam: "body",
+      params: undefined,
+      label: undefined,
+    });
+  });
+});
+
+describe("resolveIssueTarget", () => {
+  it("returns undefined when neither issueRepo nor issueTarget is set", () => {
+    expect(resolveIssueTarget({})).toBeUndefined();
+  });
+
+  it("defaults the title and body params for an explicit target", () => {
+    const resolved = resolveIssueTarget({
+      issueTarget: { url: "https://example.com/new" },
+    });
+
+    expect(resolved).toEqual({
+      url: "https://example.com/new",
+      titleParam: "title",
+      bodyParam: "body",
+      params: undefined,
+      label: undefined,
+    });
+  });
+
+  it("keeps custom params, param names, and label; prefers issueTarget over issueRepo", () => {
+    const resolved = resolveIssueTarget({
+      issueRepo: "f4ah6o/markable",
+      issueTarget: {
+        url: "https://example.com/feedback/new",
+        titleParam: "summary",
+        bodyParam: "details",
+        params: { source: "markable" },
+        label: "Report",
+      },
+    });
+
+    expect(resolved).toEqual({
+      url: "https://example.com/feedback/new",
+      titleParam: "summary",
+      bodyParam: "details",
+      params: { source: "markable" },
+      label: "Report",
+    });
   });
 });

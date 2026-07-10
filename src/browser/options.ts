@@ -1,6 +1,18 @@
 import type { MarkableContext, MarkableMode, MarkableStore } from "../core";
-import type { MarkableCaptureOptions, MarkableLocale } from "../config";
+import type { MarkableCaptureOptions, MarkableIssueTarget, MarkableLocale } from "../config";
 import { createHttpStore, createMemoryStore } from "./stores";
+
+/**
+ * A `MarkableIssueTarget` with `titleParam`/`bodyParam` normalized. This is the
+ * shape the mount code builds the prefilled form URL from.
+ */
+export interface ResolvedIssueTarget {
+  url: string;
+  titleParam: string;
+  bodyParam: string;
+  params: Record<string, string> | undefined;
+  label: string | undefined;
+}
 
 export interface MountMarkableOptions {
   /**
@@ -21,9 +33,15 @@ export interface MountMarkableOptions {
    */
   locale?: MarkableLocale;
   /**
-   * `owner/repo` used to build the "Submit Issue" link.
+   * `owner/repo` shorthand used to build a GitHub "Submit Issue" link. Ignored
+   * when `issueTarget` is set.
    */
   issueRepo?: string;
+  /**
+   * Generic "Submit Issue" target for any repository or form. Takes precedence
+   * over `issueRepo`.
+   */
+  issueTarget?: MarkableIssueTarget;
   /**
    * Show the "Powered by Markable" footer. Defaults to `true`.
    */
@@ -71,7 +89,7 @@ export interface ResolvedMountOptions {
   mode: MarkableMode;
   store: MarkableStore;
   locale: MarkableLocale;
-  issueRepo: string | undefined;
+  issueTarget: ResolvedIssueTarget | undefined;
   poweredBy: boolean;
   styleIsolation: "shadow" | "none";
   captureExclude: string | Element[] | undefined;
@@ -87,7 +105,7 @@ export function resolveMountOptions(options: MountMarkableOptions): ResolvedMoun
     mode: options.mode ?? "review",
     store,
     locale: options.locale ?? "en",
-    issueRepo: options.issueRepo,
+    issueTarget: resolveIssueTarget(options),
     poweredBy: options.poweredBy ?? true,
     styleIsolation: options.styleIsolation ?? "shadow",
     captureExclude: options.captureExclude,
@@ -102,4 +120,27 @@ function resolveStore(options: MountMarkableOptions): MarkableStore {
   if (options.store) return options.store;
   if (options.endpoint) return createHttpStore(options.endpoint);
   return createMemoryStore();
+}
+
+/**
+ * Normalize the "Submit Issue" target. An explicit `issueTarget` wins; the
+ * `issueRepo` shorthand expands to a GitHub new-issue URL. Returns `undefined`
+ * when neither is configured, which hides the button.
+ */
+export function resolveIssueTarget(
+  options: Pick<MountMarkableOptions, "issueRepo" | "issueTarget">,
+): ResolvedIssueTarget | undefined {
+  const target =
+    options.issueTarget ??
+    (options.issueRepo
+      ? { url: `https://github.com/${options.issueRepo}/issues/new` }
+      : undefined);
+  if (!target) return undefined;
+  return {
+    url: target.url,
+    titleParam: target.titleParam ?? "title",
+    bodyParam: target.bodyParam ?? "body",
+    params: target.params,
+    label: target.label,
+  };
 }
