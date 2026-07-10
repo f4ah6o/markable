@@ -218,10 +218,26 @@ pnpm --filter @f12o/markable-shadcn-admin-demo dev
 pnpm --filter @f12o/markable-shadcn-admin-demo build
 ```
 
+大規模な Vue 3 + Vuestic UI 管理画面デモ（[`epicmaxco/vuestic-admin`](https://github.com/epicmaxco/vuestic-admin) を commit `9c5b44f` で vendor）:
+
+```bash
+pnpm --filter @f12o/markable-vuestic-admin-demo dev
+pnpm --filter @f12o/markable-vuestic-admin-demo build
+```
+
+SolidJS のデータ駆動型管理画面デモ（[`marmelab/solid-admin`](https://github.com/marmelab/solid-admin) を commit `890c46a` で vendor。実行対象は `examples/solid-admin/packages/demo`、`fakerest` によりバックエンド不要）:
+
+```bash
+pnpm --filter @f12o/markable-solid-admin-demo dev
+pnpm --filter @f12o/markable-solid-admin-demo build
+```
+
 GitHub Pages では次の URL でデモを確認できます。
 
 ```text
 https://f4ah6o.github.io/markable/
 https://f4ah6o.github.io/markable/vue-todo/
 https://f4ah6o.github.io/markable/shadcn-admin/
+https://f4ah6o.github.io/markable/vuestic-admin/
+https://f4ah6o.github.io/markable/solid-admin/
 ```

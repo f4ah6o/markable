@@ -27,5 +27,33 @@
       "name": "MIT",
       "url": "https://github.com/satnaing/shadcn-admin/blob/e16c87f213a5ba5e45964e9b67c792105ec74d26/LICENSE"
     }
+  },
+  {
+    "id": "vuestic-admin",
+    "title": "Vuestic Admin",
+    "description": "Full-featured Vue 3 + Vuestic UI admin dashboard exercised with the markable overlay.",
+    "path": "examples/vuestic-admin",
+    "demoPath": "/vuestic-admin/",
+    "techStack": ["Vue 3", "Vuestic UI", "Pinia", "Tailwind CSS", "Vite"],
+    "sourceRepo": "https://github.com/epicmaxco/vuestic-admin",
+    "sourceCommit": "9c5b44f3674d4c3e7ad01cc043d5331cee953c49",
+    "sourceLicense": {
+      "name": "MIT",
+      "url": "https://github.com/epicmaxco/vuestic-admin/blob/9c5b44f3674d4c3e7ad01cc043d5331cee953c49/LICENSE"
+    }
+  },
+  {
+    "id": "solid-admin",
+    "title": "Solid Admin",
+    "description": "SolidJS data-driven admin (react-admin style) running on a fakerest provider with the markable overlay.",
+    "path": "examples/solid-admin",
+    "demoPath": "/solid-admin/",
+    "techStack": ["SolidJS", "TypeScript", "daisyUI", "Vite"],
+    "sourceRepo": "https://github.com/marmelab/solid-admin",
+    "sourceCommit": "890c46a568f2d55bbce64a08fb5142eb657695ab",
+    "sourceLicense": {
+      "name": "MIT",
+      "url": "https://github.com/marmelab/solid-admin/blob/890c46a568f2d55bbce64a08fb5142eb657695ab/LICENSE.md"
+    }
   }
 ]

@@ -1,6 +1,8 @@
 packages:
   - .
   - examples/*
+  # solid-admin is vendored as a monorepo; its packages are workspace members.
+  - examples/solid-admin/packages/*
 
 ignoredBuiltDependencies:
   - esbuild

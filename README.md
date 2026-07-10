@@ -335,6 +335,28 @@ markable({
 
 In local development, submitted marks are persisted to `examples/shadcn-admin/.markable/comments.json`.
 
+### Vuestic Admin example
+
+A full-featured Vue 3 dashboard lives in `examples/vuestic-admin`. It vendors [`epicmaxco/vuestic-admin`](https://github.com/epicmaxco/vuestic-admin) at commit `9c5b44f3674d4c3e7ad01cc043d5331cee953c49` and adds the markable Vite plugin so the overlay can be exercised against a large Vuestic UI + Pinia + Tailwind application:
+
+```bash
+pnpm install
+pnpm --filter @f12o/markable-vuestic-admin-demo dev
+pnpm --filter @f12o/markable-vuestic-admin-demo build
+```
+
+### Solid Admin example
+
+A SolidJS data-driven admin lives in `examples/solid-admin`. It vendors the [`marmelab/solid-admin`](https://github.com/marmelab/solid-admin) monorepo at commit `890c46a568f2d55bbce64a08fb5142eb657695ab`; the runnable app is `examples/solid-admin/packages/demo`, which renders against an in-browser `fakerest` data provider (no backend required) and adds the markable Vite plugin:
+
+```bash
+pnpm install
+pnpm --filter @f12o/markable-solid-admin-demo dev
+pnpm --filter @f12o/markable-solid-admin-demo build
+```
+
+The vendored `@solid-admin/*` packages are wired into this workspace via `examples/solid-admin/packages/*`, and the demo aliases them to their TypeScript sources so it builds without a separate package build step.
+
 ### GitHub Pages deployment
 
 The `Deploy demo to GitHub Pages` workflow builds the package, builds the examples, generates an example index, and publishes the static output to GitHub Pages at:
@@ -343,6 +365,8 @@ The `Deploy demo to GitHub Pages` workflow builds the package, builds the exampl
 https://f4ah6o.github.io/markable/
 https://f4ah6o.github.io/markable/vue-todo/
 https://f4ah6o.github.io/markable/shadcn-admin/
+https://f4ah6o.github.io/markable/vuestic-admin/
+https://f4ah6o.github.io/markable/solid-admin/
 ```
 
 The index page is generated from `examples/examples.json` by `scripts/build-pages-index.mjs`, so new examples can be added to the listing by updating the manifest.
