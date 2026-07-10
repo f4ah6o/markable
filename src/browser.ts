@@ -3,6 +3,8 @@ export type {
   MountMarkableOptions,
   MountedMarkable,
 } from "./browser/mount";
+export type { MarkableIssueTarget } from "./config";
+export type { ResolvedIssueTarget } from "./browser/options";
 export {
   createHttpStore,
   createMemoryStore,

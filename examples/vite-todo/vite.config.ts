@@ -15,6 +15,14 @@ export default defineConfig({
       mode: 'auto',
       commentsFile: '.markable/comments.json',
       endpoint: '/__markable/comments',
+      // `issueRepo` is a GitHub shorthand. For any other repository or form,
+      // use the generic `issueTarget` instead, e.g.:
+      //   issueTarget: {
+      //     url: 'https://example.com/feedback/new',
+      //     titleParam: 'summary',
+      //     bodyParam: 'details',
+      //     params: { source: 'markable' },
+      //   },
       issueRepo: 'f4ah6o/markable',
     }),
   ],

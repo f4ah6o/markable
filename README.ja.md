@@ -44,6 +44,33 @@ export default defineConfig({
 
 `mode: "auto"` は Vite の開発時に review モード、本番ビルド時に feedback モードへ解決されます。
 
+## Issue 送信リンク
+
+issue ターゲットを設定すると、コンポーザーに **Submit Issue** ボタンが表示されます。
+現在のマークを、事前入力済みのフォーム URL(タイトルは 1 行目、本文はページ URL・
+対象の要約・ビューポート)に変換して新しいタブで開きます。GitHub 専用ではなく、
+任意のレポジトリや任意のフォームに向けられる汎用機能です。
+
+```ts
+// GitHub のショートハンド — https://github.com/<owner/repo>/issues/new に展開されます
+markable({ issueRepo: "f4ah6o/markable" });
+
+// 汎用ターゲット — 任意のレポジトリ・トラッカー・フォーム
+markable({
+  issueTarget: {
+    url: "https://example.com/feedback/new",
+    titleParam: "summary", // タイトルのクエリパラメータ名(既定は "title")
+    bodyParam: "details",  // 本文のクエリパラメータ名(既定は "body")
+    params: { source: "markable" }, // 追加の静的クエリパラメータ
+    label: "Report",       // ボタンのラベル(既定はローカライズ文字列)
+  },
+});
+```
+
+両方を指定した場合は `issueTarget` が `issueRepo` より優先されます。どちらのオプションも
+`mountMarkable`、`markable.config.ts`、`markableClientScript` で使用できます。`titleParam`
+または `bodyParam` を空文字にすると、その項目は URL から省略されます。
+
 ## 注釈に含まれる情報(コーディングエージェント向け)
 
 要素を対象にした注釈には、コーディングエージェントが「どの画面のどの要素か」を特定し、対応するソースコードへたどり着くための構造化された情報が含まれます。

@@ -299,6 +299,68 @@ test.describe("rendering modes", () => {
   });
 });
 
+test.describe("issue submission link", () => {
+  test("opens a GitHub new-issue URL from the issueRepo shorthand", async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__markableOpened = [];
+      window.open = ((url?: string | URL) => {
+        window.__markableOpened?.push(String(url ?? ""));
+        return null;
+      }) as typeof window.open;
+    });
+    await gotoFixture(page);
+
+    await page.locator("[data-markable-launcher]").click();
+    await page.locator("[data-markable-input]").fill("Broken button on settings");
+    await page.locator("[data-markable-issue-submit]").click();
+
+    const opened = await page.evaluate(() => window.__markableOpened ?? []);
+    expect(opened).toHaveLength(1);
+    const url = new URL(opened[0]);
+    expect(url.origin + url.pathname).toBe(
+      "https://github.com/f4ah6o/markable/issues/new",
+    );
+    expect(url.searchParams.get("title")).toBe("Broken button on settings");
+    expect(url.searchParams.get("body")).toContain("Broken button on settings");
+  });
+
+  test("opens a generic form URL with custom param names", async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__markableOpened = [];
+      window.open = ((url?: string | URL) => {
+        window.__markableOpened?.push(String(url ?? ""));
+        return null;
+      }) as typeof window.open;
+    });
+    await gotoFixture(page);
+    await page.waitForFunction(() => typeof window.remountMarkable === "function");
+    await page.evaluate(() => {
+      window.remountMarkable({
+        issueTarget: {
+          url: "https://example.com/feedback/new",
+          titleParam: "summary",
+          bodyParam: "details",
+          params: { source: "markable" },
+          label: "Report",
+        },
+      });
+    });
+
+    await page.locator("[data-markable-launcher]").click();
+    await expect(page.locator("[data-markable-issue-submit]")).toHaveText("Report");
+    await page.locator("[data-markable-input]").fill("Typo in the footer");
+    await page.locator("[data-markable-issue-submit]").click();
+
+    const opened = await page.evaluate(() => window.__markableOpened ?? []);
+    expect(opened).toHaveLength(1);
+    const url = new URL(opened[0]);
+    expect(url.origin + url.pathname).toBe("https://example.com/feedback/new");
+    expect(url.searchParams.get("summary")).toBe("Typo in the footer");
+    expect(url.searchParams.get("details")).toContain("Typo in the footer");
+    expect(url.searchParams.get("source")).toBe("markable");
+  });
+});
+
 test.describe("cleanup", () => {
   test("removes UI through unmount()", async ({ page }) => {
     await gotoFixture(page);
@@ -318,5 +380,6 @@ declare global {
   interface Window {
     remountMarkable?: (options?: Record<string, unknown>) => void;
     unmountMarkable?: () => void;
+    __markableOpened?: string[];
   }
 }

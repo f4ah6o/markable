@@ -163,7 +163,7 @@ ${cards}
       </section>
     </main>
     <script type="module">
-${markableClientScript({ mode: "feedback" })}
+${markableClientScript({ mode: "feedback", issueRepo: "f4ah6o/markable" })}
     </script>
   </body>
 </html>

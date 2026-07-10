@@ -6,10 +6,15 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Plugin } from "vite";
 import { normalizeAnnotation } from "./annotations";
-import type { MarkableCaptureOptions, MarkableConfig, MarkableLocale } from "./config";
+import type {
+  MarkableCaptureOptions,
+  MarkableConfig,
+  MarkableIssueTarget,
+  MarkableLocale,
+} from "./config";
 import type { MarkableAnnotation, MarkableMode } from "./core";
 
-export type { MarkableLocale };
+export type { MarkableIssueTarget, MarkableLocale };
 export { normalizeAnnotation } from "./annotations";
 
 /** Upper bound for a single POSTed annotation payload. */
@@ -24,6 +29,7 @@ interface ResolvedOptions {
   poweredBy: boolean;
   locale: MarkableLocale;
   issueRepo: string | undefined;
+  issueTarget: MarkableIssueTarget | undefined;
   devOnly: boolean;
   capture: MarkableCaptureOptions | undefined;
 }
@@ -36,6 +42,7 @@ function resolveOptions(options: MarkableConfig): ResolvedOptions {
     poweredBy: options.poweredBy ?? true,
     locale: options.locale ?? "en",
     issueRepo: options.issueRepo,
+    issueTarget: options.issueTarget,
     devOnly: options.devOnly ?? false,
     capture: options.capture,
   };
@@ -77,6 +84,7 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
             resolved.poweredBy,
             resolved.locale,
             resolved.issueRepo,
+            resolved.issueTarget,
             resolved.capture,
           ),
           injectTo: "body",
@@ -193,6 +201,7 @@ export function markable(options: MarkableViteOptions = {}): Plugin {
         resolved.poweredBy,
         resolved.locale,
         resolved.issueRepo,
+        resolved.issueTarget,
         resolved.capture,
       );
     },
@@ -383,6 +392,7 @@ export interface MarkableClientScriptOptions {
   poweredBy?: boolean;
   locale?: MarkableLocale;
   issueRepo?: string;
+  issueTarget?: MarkableIssueTarget;
   capture?: MarkableCaptureOptions;
 }
 
@@ -393,6 +403,7 @@ export function markableClientScript(options: MarkableClientScriptOptions): stri
     options.poweredBy ?? true,
     options.locale ?? "en",
     options.issueRepo,
+    options.issueTarget,
     options.capture,
   );
 }
@@ -420,6 +431,7 @@ function clientSource(
   poweredBy: boolean,
   locale: MarkableLocale,
   issueRepo: string | undefined,
+  issueTarget: MarkableIssueTarget | undefined,
   capture: MarkableCaptureOptions | undefined,
 ): string {
   const options = {
@@ -428,6 +440,7 @@ function clientSource(
     poweredBy,
     locale,
     issueRepo,
+    issueTarget,
     capture,
   };
 

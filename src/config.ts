@@ -27,6 +27,37 @@ export interface MarkableCaptureOptions {
 }
 
 /**
+ * Generic target for the "Submit Issue" button. Turns a submitted mark into a
+ * prefilled form URL, so the button can point at any GitHub repository, any
+ * other issue tracker, or an arbitrary form (Google Forms, a survey, etc.).
+ * Everything is plain JSON so the Vite plugin can serialize it into the
+ * injected client script.
+ */
+export interface MarkableIssueTarget {
+  /**
+   * Base URL of the new-issue / form page, e.g. a GitHub
+   * `https://github.com/owner/repo/issues/new` URL or a Google Form URL.
+   */
+  url: string;
+  /**
+   * Query parameter that receives the generated title. Defaults to `"title"`.
+   * Set to an empty string to omit the title entirely.
+   */
+  titleParam?: string;
+  /**
+   * Query parameter that receives the generated body. Defaults to `"body"`.
+   * Set to an empty string to omit the body entirely.
+   */
+  bodyParam?: string;
+  /**
+   * Static query parameters merged into the URL, e.g. `{ labels: "feedback" }`.
+   */
+  params?: Record<string, string>;
+  /** Button label. Falls back to the localized default when unset. */
+  label?: string;
+}
+
+/**
  * Options shared by the Vite plugin and the Markable-owned `markable.config.*`
  * file. The CLI writes these into `markable.config.ts` so that `vite.config.*`
  * only needs the minimal `markable()` plugin call.
@@ -39,9 +70,17 @@ export interface MarkableConfig {
   poweredBy?: boolean;
   locale?: MarkableLocale;
   /**
-   * `owner/repo` used to build the "Submit Issue" link in the injected UI.
+   * `owner/repo` shorthand used to build a GitHub "Submit Issue" link in the
+   * injected UI. Equivalent to
+   * `issueTarget: { url: "https://github.com/<owner/repo>/issues/new" }`.
+   * Ignored when `issueTarget` is set.
    */
   issueRepo?: string;
+  /**
+   * Generic "Submit Issue" target for any repository or form. Takes precedence
+   * over `issueRepo` when both are provided.
+   */
+  issueTarget?: MarkableIssueTarget;
   /**
    * Restrict Markable to the Vite dev server. When enabled the plugin is never
    * active during `vite build`.
